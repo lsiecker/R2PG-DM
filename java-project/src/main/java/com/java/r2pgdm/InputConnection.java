@@ -4,6 +4,9 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 import com.java.r2pgdm.graph.Edge;
 import com.java.r2pgdm.graph.Node;
@@ -121,7 +124,7 @@ public class InputConnection {
         sqlSB.append("SELECT rId FROM myTable WHERE ".concat(val).concat("='").concat(key).concat("';"));
 
         String sql = sqlSB.toString();
-        System.out.println(sql);
+        // System.out.println(sql);
         try {
             Statement stmt = _con.createStatement();
             ResultSet values = stmt.executeQuery(sql);
@@ -154,7 +157,7 @@ public class InputConnection {
                 .concat(Character.toString(_Quoting)).concat(cfk.TargetTable).concat(Character.toString(_Quoting))
                 .concat(" AS temp2 ").concat(sqlWhe).concat(";");
 
-        System.out.println(sql.concat(" (160)"));
+        // System.out.println(sql.concat(" (160)"));
 
         try {
             Statement stmt = _con.createStatement();
@@ -201,7 +204,6 @@ public class InputConnection {
             OutputConnection.InsertNodeRow(n);
             return currIdentifier;
         } catch (SQLException e) {
-
             e.printStackTrace();
             return null;
         }
@@ -212,10 +214,12 @@ public class InputConnection {
     }
 
     // #endregion
-
     public void CreateNodesAndProperties(String relName) {
         List<String> cols = GetColumns(relName);
         StringBuilder sqlSB = new StringBuilder("SELECT ");
+
+        //cols = cols.stream().map(InputConnection::addApostrophes).collect(Collectors.toList());
+
         cols.stream().forEach(c -> {
             sqlSB.append(c).append(",");
         });
@@ -223,6 +227,7 @@ public class InputConnection {
         sqlSB.append(" ROW_NUMBER() OVER (ORDER BY (".concat(cols.get(0)).concat(")) AS rId FROM "));
         sqlSB.append(Character.toString(_Quoting).concat(relName).concat(Character.toString(_Quoting)));
         sqlSB.append(" GROUP BY ");
+
         cols.stream().forEach(c -> {
             sqlSB.append(c).append(",");
         });
@@ -236,14 +241,31 @@ public class InputConnection {
             stmt.setFetchSize(500);
             ResultSet values = stmt.executeQuery();
             ResultSetMetaData valuesMd = values.getMetaData();
+
+            int count = 0;
+            long start = System.currentTimeMillis();
+
             while (values.next()) {
-                String currIdentifier = CreateNode(values, valuesMd, relName);
-                CreateProperty(values, valuesMd, currIdentifier);
+                createNodeWithProperties(values, valuesMd, relName);
+                if (count % 25 == 0) {
+                    System.out.println("Created " + count + " nodes with properties for table " + relName);
+                    long processed = System.currentTimeMillis();
+                    System.out.println((processed-start)/1000d);
+                    start = System.currentTimeMillis();
+
+                }
+                count++;
+
             }
         } catch (SQLException e) {
             e.printStackTrace();
             System.out.println(sql);
         }
+    }
+
+    private void createNodeWithProperties(ResultSet values, ResultSetMetaData valuesMd, String relName) {
+        String currIdentifier = CreateNode(values, valuesMd, relName);
+        CreateProperty(values, valuesMd, currIdentifier);
     }
 
     public void CreateEdges(CompositeForeignKey cfk) {

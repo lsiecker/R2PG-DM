@@ -3,10 +3,12 @@ package com.java.r2pgdm;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import com.java.r2pgdm.graph.Edge;
 import com.java.r2pgdm.graph.Node;
 import com.java.r2pgdm.graph.Property;
+import org.apache.commons.lang3.StringUtils;
 
 public class OutputConnection {
 
@@ -67,30 +69,37 @@ public class OutputConnection {
     }
 
     public static void InsertPropertyRow(ResultSet values, ResultSetMetaData valuesMd, String currIdentifier) {
-
-        String sql = "INSERT INTO property VALUES(?,?,?);";
+        long start = System.currentTimeMillis();
+        StringBuilder sql = new StringBuilder("INSERT INTO property VALUES(?,?,?)");
+        ArrayList<Property> properties = new ArrayList<>();
         try {
             int length = valuesMd.getColumnCount();
 
-            PreparedStatement st = _con.prepareStatement(sql);
             for (int i = 1; i < length; i++) {
                 String currAtt = valuesMd.getColumnName(i);
                 Object currVal = values.getObject(i);
                 if (currVal != null) {
-                    Property prop = new Property(currIdentifier, currAtt, currVal.toString());
-                    st.setInt(1, Integer.parseInt(prop.Id));
-                    st.setString(2, prop.Key);
-                    st.setString(3, prop.Value);
-                    st.addBatch();
+                    properties.add(new Property(currIdentifier, currAtt, currVal.toString()));
                 }
             }
-            int[] result = st.executeBatch();
-            System.out.println(result.length + " property(ies) added.");
 
+            for (int i = 1; i < properties.size(); i++) {
+                sql.append(",(?,?,?)");
+            }
+
+            PreparedStatement st = _con.prepareStatement(sql.toString());for (int i = 0; i < properties.size(); i++) {
+                Property prop = properties.get(i);
+                st.setInt(3*i + 1, Integer.parseInt(prop.Id));
+                st.setString(3*i + 2, prop.Key);
+                st.setString(3*i + 3, prop.Value);
+            }
+            st.executeUpdate();
         } catch (SQLException e) {
             System.out.println(sql);
             e.printStackTrace();
         }
+
+        long end = System.currentTimeMillis();
     }
 
     public static void InsertEdgeRow(Edge edge) {
@@ -113,7 +122,7 @@ public class OutputConnection {
             st.setString(2, n.Label);
 
             Integer result = st.executeUpdate();
-            System.out.println(result.toString().concat(" node added."));
+            // System.out.println(result.toString().concat(" node added."));
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -164,6 +173,10 @@ public class OutputConnection {
     public static ResultSet GetNodeData() {
         String sql = "select * from node;";
 
+        return getResultSet(sql);
+    }
+
+    private static ResultSet getResultSet(String sql) {
         try {
             PreparedStatement stmt = _con.prepareStatement(sql, ResultSet.TYPE_FORWARD_ONLY,
                     ResultSet.CONCUR_READ_ONLY);
@@ -180,33 +193,13 @@ public class OutputConnection {
     public static ResultSet GetPropertyData() {
         String sql = "select * from property;";
 
-        try {
-            PreparedStatement stmt = _con.prepareStatement(sql, ResultSet.TYPE_FORWARD_ONLY,
-                    ResultSet.CONCUR_READ_ONLY);
-            stmt.setFetchSize(500);
-            ResultSet values = stmt.executeQuery();
-            return values;
-        } catch (SQLException e) {
-            System.out.println(sql);
-            e.printStackTrace();
-            return null;
-        }
+        return getResultSet(sql);
     }
 
     public static ResultSet GetEdgeData() {
         String sql = "select * from edge;";
 
-        try {
-            PreparedStatement stmt = _con.prepareStatement(sql, ResultSet.TYPE_FORWARD_ONLY,
-                    ResultSet.CONCUR_READ_ONLY);
-            stmt.setFetchSize(500);
-            ResultSet values = stmt.executeQuery();
-            return values;
-        } catch (SQLException e) {
-            System.out.println(sql);
-            e.printStackTrace();
-            return null;
-        }
+        return getResultSet(sql);
     }
 
     public void CreateGraphSQL() {

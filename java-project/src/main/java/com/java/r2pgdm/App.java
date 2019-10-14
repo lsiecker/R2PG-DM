@@ -6,7 +6,12 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import org.ini4j.InvalidFileFormatException;
 import org.ini4j.Wini;
@@ -27,10 +32,25 @@ public class App {
             Instant starts = Instant.now();
             // Create node + props
             List<String> tables = inputConn.GetTableName();
+
+            int tCount = Runtime.getRuntime().availableProcessors();
+            ExecutorService executorService = Executors.newFixedThreadPool(tCount); // TODO find thread count
+
+            ArrayList<Future<?>> tFinished = new ArrayList<>();
+
             tables.forEach(t -> {
-                inputConn.CreateNodesAndProperties(t);
+                tFinished.add(executorService.submit(() -> inputConn.CreateNodesAndProperties(t)));
             });
 
+            tFinished.forEach((future) ->{
+                try {
+                    future.get();
+                } catch (InterruptedException | ExecutionException e) {
+                    e.printStackTrace();
+                }
+            }); // Wait for nodes and properties to finish creating
+
+            System.out.println("Nodes with properties created");
             // Create edges
             tables.forEach(t -> {
 
