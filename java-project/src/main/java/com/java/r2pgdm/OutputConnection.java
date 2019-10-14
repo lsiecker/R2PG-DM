@@ -3,12 +3,10 @@ package com.java.r2pgdm;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 import com.java.r2pgdm.graph.Edge;
 import com.java.r2pgdm.graph.Node;
 import com.java.r2pgdm.graph.Property;
-import org.apache.commons.lang3.StringUtils;
 
 public class OutputConnection {
 
@@ -68,13 +66,10 @@ public class OutputConnection {
         }
     }
 
-    public static void InsertPropertyRow(ResultSet values, ResultSetMetaData valuesMd, String currIdentifier) {
-        long start = System.currentTimeMillis();
-        StringBuilder sql = new StringBuilder("INSERT INTO property VALUES(?,?,?)");
+    public static ArrayList<Property> createPropertyRow(ResultSet values, ResultSetMetaData valuesMd, String currIdentifier) {
         ArrayList<Property> properties = new ArrayList<>();
         try {
             int length = valuesMd.getColumnCount();
-
             for (int i = 1; i < length; i++) {
                 String currAtt = valuesMd.getColumnName(i);
                 Object currVal = values.getObject(i);
@@ -82,24 +77,10 @@ public class OutputConnection {
                     properties.add(new Property(currIdentifier, currAtt, currVal.toString()));
                 }
             }
-
-            for (int i = 1; i < properties.size(); i++) {
-                sql.append(",(?,?,?)");
-            }
-
-            PreparedStatement st = _con.prepareStatement(sql.toString());for (int i = 0; i < properties.size(); i++) {
-                Property prop = properties.get(i);
-                st.setInt(3*i + 1, Integer.parseInt(prop.Id));
-                st.setString(3*i + 2, prop.Key);
-                st.setString(3*i + 3, prop.Value);
-            }
-            st.executeUpdate();
         } catch (SQLException e) {
-            System.out.println(sql);
             e.printStackTrace();
         }
-
-        long end = System.currentTimeMillis();
+        return properties;
     }
 
     public static void InsertEdgeRow(Edge edge) {
@@ -114,15 +95,42 @@ public class OutputConnection {
         }
     }
 
-    public static void InsertNodeRow(Node n) {
-        try {
-            String sql = "INSERT INTO node VALUES(?,?);";
-            PreparedStatement st = _con.prepareStatement(sql);
-            st.setInt(1, Integer.parseInt(n.Id));
-            st.setString(2, n.Label);
+    public static void insertPropertyRow(ArrayList<Property> properties) {
+        StringBuilder sql = new StringBuilder("INSERT INTO property VALUES(?,?,?)");
 
-            Integer result = st.executeUpdate();
-            // System.out.println(result.toString().concat(" node added."));
+        for (int i = 1; i < properties.size(); i++) {
+            sql.append(",(?,?,?)");
+        }
+
+        try {
+            PreparedStatement st = _con.prepareStatement(sql.toString());
+            for (int i = 0; i < properties.size(); i++) {
+                Property prop = properties.get(i);
+                st.setInt(3 * i + 1, Integer.parseInt(prop.Id));
+                st.setString(3 * i + 2, prop.Key);
+                st.setString(3 * i + 3, prop.Value);
+            }
+            st.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void InsertNodeRows(ArrayList<Node> nodes) {
+        StringBuilder sql = new StringBuilder("INSERT INTO node VALUES(?,?)");
+
+        for (int i = 1; i < nodes.size(); i++) {
+            sql.append(",(?,?)");
+        }
+
+        try {
+            PreparedStatement st = _con.prepareStatement(sql.toString());
+            for (int i = 0; i < nodes.size(); i++) {
+                Node n = nodes.get(i);
+                st.setInt(2*i + 1, Integer.parseInt(n.Id));
+                st.setString(2*i + 2, n.Label);
+            }
+            st.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
         }

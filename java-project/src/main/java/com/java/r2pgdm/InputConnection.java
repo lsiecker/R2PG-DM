@@ -2,14 +2,15 @@ package com.java.r2pgdm;
 
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.stream.Collectors;
 
 import com.java.r2pgdm.graph.Edge;
 import com.java.r2pgdm.graph.Node;
+import com.java.r2pgdm.graph.Property;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 
 public class InputConnection {
 
@@ -194,23 +195,22 @@ public class InputConnection {
         }
     }
 
-    private String CreateNode(ResultSet values, ResultSetMetaData valuesMd, String relName) {
+    private Pair<String, Node> CreateNode(ResultSet values, ResultSetMetaData valuesMd, String relName) {
         try {
             int columns = valuesMd.getColumnCount();
             Integer rId = values.getInt(columns);
             String currIdentifier = Identifier.id(Optional.of(rId), Optional.of(relName), null, null, null, null, null)
                     .toString();
             Node n = new Node(currIdentifier, relName);
-            OutputConnection.InsertNodeRow(n);
-            return currIdentifier;
+            return new ImmutablePair<>(currIdentifier, n);
         } catch (SQLException e) {
             e.printStackTrace();
             return null;
         }
     }
 
-    private void CreateProperty(ResultSet values, ResultSetMetaData valuesMd, String currIdentifier) {
-        OutputConnection.InsertPropertyRow(values, valuesMd, currIdentifier);
+    private ArrayList<Property> CreateProperty(ResultSet values, ResultSetMetaData valuesMd, String currIdentifier) {
+        return OutputConnection.createPropertyRow(values, valuesMd, currIdentifier);
     }
 
     // #endregion
@@ -243,29 +243,35 @@ public class InputConnection {
             ResultSetMetaData valuesMd = values.getMetaData();
 
             int count = 0;
+            int batchSize = 1000;
             long start = System.currentTimeMillis();
 
+            ArrayList<Node> nodes = new ArrayList<>();
+            ArrayList<Property> properties = new ArrayList<>();
+
             while (values.next()) {
-                createNodeWithProperties(values, valuesMd, relName);
-                if (count % 25 == 0) {
-                    System.out.println("Created " + count + " nodes with properties for table " + relName);
-                    long processed = System.currentTimeMillis();
-                    System.out.println((processed-start)/1000d);
-                    start = System.currentTimeMillis();
+                Pair<String, Node> node = CreateNode(values, valuesMd, relName);
+                if (node != null) {
+                    nodes.add(node.getRight());
+                    properties.addAll(CreateProperty(values, valuesMd, node.getLeft()));
 
+                    if (count >= batchSize && count % batchSize == 0) {
+                        OutputConnection.InsertNodeRows(nodes);
+                        OutputConnection.insertPropertyRow(properties);
+                        nodes.clear();
+                        properties.clear();
+                        System.out.println("Created " + count + " nodes with properties for table " + relName);
+                        long processed = System.currentTimeMillis();
+                        System.out.println((processed-start)/1000d);
+                        start = System.currentTimeMillis();
+                    }
+                    count++;
                 }
-                count++;
-
             }
         } catch (SQLException e) {
             e.printStackTrace();
             System.out.println(sql);
         }
-    }
-
-    private void createNodeWithProperties(ResultSet values, ResultSetMetaData valuesMd, String relName) {
-        String currIdentifier = CreateNode(values, valuesMd, relName);
-        CreateProperty(values, valuesMd, currIdentifier);
     }
 
     public void CreateEdges(CompositeForeignKey cfk) {

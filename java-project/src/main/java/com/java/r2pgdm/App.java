@@ -33,8 +33,9 @@ public class App {
             // Create node + props
             List<String> tables = inputConn.GetTableName();
 
+            // Transform tables in parallel
             int tCount = Runtime.getRuntime().availableProcessors();
-            ExecutorService executorService = Executors.newFixedThreadPool(tCount); // TODO find thread count
+            ExecutorService executorService = Executors.newFixedThreadPool(tCount);
 
             ArrayList<Future<?>> tFinished = new ArrayList<>();
 
@@ -42,15 +43,17 @@ public class App {
                 tFinished.add(executorService.submit(() -> inputConn.CreateNodesAndProperties(t)));
             });
 
+            // Wait for nodes and properties to finish creating
             tFinished.forEach((future) ->{
                 try {
                     future.get();
                 } catch (InterruptedException | ExecutionException e) {
                     e.printStackTrace();
                 }
-            }); // Wait for nodes and properties to finish creating
+            });
 
             System.out.println("Nodes with properties created");
+
             // Create edges
             tables.forEach(t -> {
 
