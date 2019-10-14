@@ -32,45 +32,19 @@ public class App {
             Instant starts = Instant.now();
             // Create node + props
             List<String> tables = inputConn.GetTableName();
-
             // Transform tables in parallel
             int tCount = Runtime.getRuntime().availableProcessors();
             ExecutorService executorService = Executors.newFixedThreadPool(tCount);
 
             ArrayList<Future<?>> tFinished = new ArrayList<>();
-
-            tables.forEach(t -> {
-                tFinished.add(executorService.submit(() -> inputConn.CreateNodesAndProperties(t)));
-            });
-
-            // Wait for nodes and properties to finish creating
-            tFinished.forEach((future) ->{
-                try {
-                    future.get();
-                } catch (InterruptedException | ExecutionException e) {
-                    e.printStackTrace();
-                }
-            });
-
+            tables.forEach(t -> tFinished.add(executorService.submit(() -> inputConn.CreateNodesAndProperties(t))));
+            awaitTableCompletion(tFinished); // Wait for nodes and properties to finish creating
             System.out.println("Nodes with properties created");
 
             // Create edges
-            tables.forEach(t -> {
-
-                List<CompositeForeignKey> fks = inputConn.GetForeignKeys(t);
-                fks.forEach(fk -> {
-                    String sql = "INSERT INTO edge VALUES(?,?,?,?);";
-                    try {
-                        _statementEdges = OutputConnection._con.prepareStatement(sql);
-                        inputConn.CreateEdges(fk);
-                        int[] result = _statementEdges.executeBatch();
-                        System.out.println(result.length + " edge(s) added.");
-                    } catch (SQLException e) {
-                        e.printStackTrace();
-                    }
-                });
-
-            });
+            tables.forEach(t -> tFinished.add(executorService.submit(() -> createEdges(inputConn, t))));
+            awaitTableCompletion(tFinished); // Wait for edges to finish creating
+            System.out.println("Edges created");
 
             Instant ends = Instant.now();
             System.out.println(Duration.between(starts, ends).toMillis());
@@ -79,11 +53,26 @@ public class App {
 
             Export.GenerateCSVs();
 
-        } catch (InvalidFileFormatException e) {
-            e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    private static void awaitTableCompletion(ArrayList<Future<?>> tFinished) {
+        tFinished.forEach((future) ->{
+            try {
+                future.get();
+            } catch (InterruptedException | ExecutionException e) {
+                e.printStackTrace();
+            }
+        });
+        tFinished.clear();
+    }
+
+    private static void createEdges(InputConnection inputConn, String t) {
+        List<CompositeForeignKey> fks = inputConn.GetForeignKeys(t);
+        System.out.println(fks.size() + " fks where found in table " + t);
+        fks.forEach(fk -> inputConn.CreateEdges(fk, t));
     }
 
     private static Config GetConfiguration(Section section) {

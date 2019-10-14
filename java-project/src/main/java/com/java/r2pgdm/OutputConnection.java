@@ -83,13 +83,26 @@ public class OutputConnection {
         return properties;
     }
 
-    public static void InsertEdgeRow(Edge edge) {
+    public static void InsertEdgeRows(ArrayList<Edge> edges) {
+        StringBuilder sql = new StringBuilder("INSERT INTO edge VALUES(?,?,?,?)");
+
+        for (int i = 1; i < edges.size(); i++) {
+            sql.append(",(?,?,?,?)");
+        }
+
         try {
-            App._statementEdges.setInt(1, Integer.parseInt(edge.Id));
-            App._statementEdges.setInt(2, Integer.parseInt(edge.SrcId));
-            App._statementEdges.setInt(3, Integer.parseInt(edge.TgtId));
-            App._statementEdges.setString(4, edge.Label);
-            App._statementEdges.addBatch();
+            PreparedStatement statementEdges = OutputConnection._con.prepareStatement(sql.toString());
+
+            for (int i = 0; i < edges.size(); i++) {
+                Edge edge = edges.get(i);
+
+                statementEdges.setInt(4*i + 1, Integer.parseInt(edge.Id));
+                statementEdges.setInt(4*i + 2, Integer.parseInt(edge.SrcId));
+                statementEdges.setInt(4*i + 3, Integer.parseInt(edge.TgtId));
+                statementEdges.setString(4*i + 4, edge.Label);
+            }
+
+            statementEdges.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
         }

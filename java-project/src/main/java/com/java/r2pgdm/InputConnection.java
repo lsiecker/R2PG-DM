@@ -142,23 +142,23 @@ public class InputConnection {
         }
     }
 
-    private List<Column> JoinFks(CompositeForeignKey cfk) {
+    private List<Column> JoinFks(CompositeForeignKey cfk, String t) {
         String sqlSel = "SELECT ";
         String sqlWhe = " ON ";
+
         for (int i = 0; i < cfk.ForeignKeys.size(); i++) {
             ForeignKey fk = cfk.ForeignKeys.get(i);
             sqlSel = sqlSel.concat("temp1.").concat(fk.SourceAttribute).concat(",");
             sqlWhe = sqlWhe.concat("temp1.").concat(fk.SourceAttribute).concat(" = ").concat("temp2.")
                     .concat(fk.TargetAttribute).concat(" AND ");
         }
+
         sqlSel = sqlSel.substring(0, sqlSel.length() - 1);
         sqlWhe = sqlWhe.substring(0, sqlWhe.length() - 5);
         String sql = sqlSel.concat(" FROM ").concat(Character.toString(_Quoting)).concat(cfk.SourceTable)
                 .concat(Character.toString(_Quoting)).concat(" AS temp1 INNER JOIN ")
                 .concat(Character.toString(_Quoting)).concat(cfk.TargetTable).concat(Character.toString(_Quoting))
                 .concat(" AS temp2 ").concat(sqlWhe).concat(";");
-
-        // System.out.println(sql.concat(" (160)"));
 
         try {
             Statement stmt = _con.createStatement();
@@ -167,6 +167,11 @@ public class InputConnection {
             List<Column> local = new ArrayList<>();
             // Join and create columns for each tuple. Column represents one fk with value.
             // (no duplicates allowed.)
+
+            long start = System.currentTimeMillis();
+            long count = 0;
+            int printBatchSize = 25000;
+
             while (values.next()) {
                 int cols = valuesMd.getColumnCount();
                 for (int i = 1; i <= cols; i++) {
@@ -186,6 +191,9 @@ public class InputConnection {
                         local.add(newCol);
                     }
                 }
+                count++;
+                if (count >= printBatchSize && count % printBatchSize == 0)
+                    System.out.println(count + " foreign keys joined for table " + t);
             }
             return local;
         } catch (SQLException e) {
@@ -244,7 +252,6 @@ public class InputConnection {
 
             int count = 0;
             int batchSize = 1000;
-            long start = System.currentTimeMillis();
 
             ArrayList<Node> nodes = new ArrayList<>();
             ArrayList<Property> properties = new ArrayList<>();
@@ -261,9 +268,6 @@ public class InputConnection {
                         nodes.clear();
                         properties.clear();
                         System.out.println("Created " + count + " nodes with properties for table " + relName);
-                        long processed = System.currentTimeMillis();
-                        System.out.println((processed-start)/1000d);
-                        start = System.currentTimeMillis();
                     }
                     count++;
                 }
@@ -274,12 +278,13 @@ public class InputConnection {
         }
     }
 
-    public void CreateEdges(CompositeForeignKey cfk) {
+    public void CreateEdges(CompositeForeignKey cfk, String t) {
         try {
-            List<Column> results = JoinFks(cfk);
-
+            List<Column> results = JoinFks(cfk, t);
             List<String> fksR = new ArrayList<>();
             List<String> fksS = new ArrayList<>();
+
+            System.out.println("Joined foreign keys for table " + t);
 
             // Create set of foreign keys
             for (int i = 0; i < cfk.ForeignKeys.size(); i++) {
@@ -294,6 +299,11 @@ public class InputConnection {
             // size of foreign keys composing the Composed fk))
             int length = results.size() / cfk.ForeignKeys.size();
 
+            ArrayList<Edge> edges = new ArrayList<>();
+            int count = 0;
+            int batchSize = 10;
+            System.out.println("creating edges for table " + t);
+
             for (int z = 0; z < length; z++) {
                 Column curr = results.get(z);
                 // Get tuple ids.
@@ -303,6 +313,7 @@ public class InputConnection {
                     throw new NullPointerException("rId or sId is -1.");
                 }
 
+                long start = System.currentTimeMillis();
                 // for each value -> get the node ids of the nodes with label
                 // cfk.SourceTable/cfk.TargetTable
                 // and has a property value = curr.Value
@@ -310,6 +321,8 @@ public class InputConnection {
                         curr.SourceAttribute, curr.Value);
                 List<String> tNodeIds = OutputConnection.JoinNodeAndProperty(curr.TargetRelationName,
                         curr.TargetAttribute, curr.Value);
+                long retrieved = System.currentTimeMillis();
+                System.out.println(sNodeIds.size()+ ", " + tNodeIds.size() + " - " + (retrieved - start)/1000d);
                 // For all ids obtained -> create edge from all source ids to all target ids.
                 for (int i = 0; i < sNodeIds.size(); i++) {
                     String sNodeId = sNodeIds.get(i);
@@ -317,8 +330,16 @@ public class InputConnection {
                         Integer id = Identifier.id(Optional.of(rId), Optional.of(cfk.SourceTable), null,
                                 Optional.of(sId), Optional.of(cfk.TargetTable), Optional.of(fksR), Optional.of(fksS));
                         String tNodeId = tNodeIds.get(j);
-                        OutputConnection.InsertEdgeRow(new Edge(id.toString(), sNodeId, tNodeId,
-                                cfk.SourceTable.concat("-").concat(cfk.TargetTable)));
+                        Edge e = new Edge(id.toString(), sNodeId, tNodeId, cfk.SourceTable.concat("-").concat(cfk.TargetTable));
+                        edges.add(e);
+                        count++;
+
+                        if (edges.size() >= batchSize){
+                            OutputConnection.InsertEdgeRows(edges);
+                            System.out.println("Added " + count + " Edges for table " + t);
+
+                            edges.clear();
+                        }
                     }
                 }
             }
