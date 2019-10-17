@@ -321,6 +321,7 @@ public class InputConnection {
                         curr.SourceAttribute, curr.Value);
                 List<String> tNodeIds = OutputConnection.JoinNodeAndProperty(curr.TargetRelationName,
                         curr.TargetAttribute, curr.Value);
+
                 long retrieved = System.currentTimeMillis();
                 System.out.println(sNodeIds.size()+ ", " + tNodeIds.size() + " - " + (retrieved - start)/1000d);
                 // For all ids obtained -> create edge from all source ids to all target ids.
