@@ -30,4 +30,15 @@ public class Column {
         this.TargetRelationName = tRelName;
         this.TargetAttribute = tAtt;
     }
+
+    @Override
+    public String toString() {
+        return "Column{" +
+                "SourceRelationName='" + SourceRelationName + '\'' +
+                ", SourceAttribute='" + SourceAttribute + '\'' +
+                ", TargetRelationName='" + TargetRelationName + '\'' +
+                ", TargetAttribute='" + TargetAttribute + '\'' +
+                ", Value='" + Value + '\'' +
+                '}';
+    }
 }

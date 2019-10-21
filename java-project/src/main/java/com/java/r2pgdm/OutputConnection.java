@@ -154,7 +154,7 @@ public class OutputConnection {
                 .concat(val).concat("' AND p.pkey='").concat(key).concat("' AND n.label='").concat(relName)
                 .concat("';");
         List<String> results = new ArrayList<>();
-
+        System.out.println(sql);
         try {
             Statement stmt = _con.createStatement();
             ResultSet values = stmt.executeQuery(sql);

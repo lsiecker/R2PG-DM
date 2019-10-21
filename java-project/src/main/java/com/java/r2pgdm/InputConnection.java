@@ -1,5 +1,8 @@
 package com.java.r2pgdm;
 
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -125,7 +128,7 @@ public class InputConnection {
         sqlSB.append("SELECT rId FROM myTable WHERE ".concat(val).concat("='").concat(key).concat("';"));
 
         String sql = sqlSB.toString();
-        // System.out.println(sql);
+        System.out.println(sql);
         try {
             Statement stmt = _con.createStatement();
             ResultSet values = stmt.executeQuery(sql);
@@ -163,6 +166,7 @@ public class InputConnection {
         try {
             Statement stmt = _con.createStatement();
             ResultSet values = stmt.executeQuery(sql);
+
             ResultSetMetaData valuesMd = values.getMetaData();
             List<Column> local = new ArrayList<>();
             // Join and create columns for each tuple. Column represents one fk with value.
@@ -279,18 +283,35 @@ public class InputConnection {
     }
 
     public void CreateEdges(CompositeForeignKey cfk, String t) {
+        FileWriter fileWriter = null;
+        try {
+            fileWriter = new FileWriter("C:\\Users\\Jamiro.Leander\\Documents\\git\\Thesis\\MT-Code\\BPIC14\\Output\\" + "edgesLog-"+System.currentTimeMillis()+".txt");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        PrintWriter printWriter = new PrintWriter(fileWriter);
+
         try {
             List<Column> results = JoinFks(cfk, t);
             List<String> fksR = new ArrayList<>();
             List<String> fksS = new ArrayList<>();
 
-            System.out.println("Joined foreign keys for table " + t);
+//            printWriter.println("cfk foreginkeys size: " + cfk.ForeignKeys.size());
+//            printWriter.println("results size: " + results.size());
 
+//            for (Column r : results) {
+//                printWriter.println(r);
+//            }
+
+//            System.out.println("Joined foreign keys for table " + t);
+
+//            printWriter.println("Writing foreignkeys");
             // Create set of foreign keys
             for (int i = 0; i < cfk.ForeignKeys.size(); i++) {
                 ForeignKey fk = cfk.ForeignKeys.get(i);
                 fksR.add(fk.SourceAttribute);
                 fksS.add(fk.TargetAttribute);
+                //printWriter.println(fk);
             }
 
             Integer rId = -1, sId = -1;
@@ -322,8 +343,8 @@ public class InputConnection {
                 List<String> tNodeIds = OutputConnection.JoinNodeAndProperty(curr.TargetRelationName,
                         curr.TargetAttribute, curr.Value);
 
-                long retrieved = System.currentTimeMillis();
-                System.out.println(sNodeIds.size()+ ", " + tNodeIds.size() + " - " + (retrieved - start)/1000d);
+
+                if (sNodeIds.size() > 0 && tNodeIds.size() > 0)
                 // For all ids obtained -> create edge from all source ids to all target ids.
                 for (int i = 0; i < sNodeIds.size(); i++) {
                     String sNodeId = sNodeIds.get(i);
@@ -347,5 +368,6 @@ public class InputConnection {
         } catch (Exception e) {
             e.printStackTrace();
         }
+        printWriter.close();
     }
 }

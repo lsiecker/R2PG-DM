@@ -23,4 +23,14 @@ public class ForeignKey {
         this.SourceAttribute = sa;
         this.TargetAttribute = ta;
     }
+
+    @Override
+    public String toString() {
+        return "ForeignKey{" +
+                "SourceTable='" + SourceTable + '\'' +
+                ", TargetTable='" + TargetTable + '\'' +
+                ", SourceAttribute='" + SourceAttribute + '\'' +
+                ", TargetAttribute='" + TargetAttribute + '\'' +
+                '}';
+    }
 }

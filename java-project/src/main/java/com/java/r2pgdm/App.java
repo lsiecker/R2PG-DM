@@ -29,29 +29,34 @@ public class App {
             InputConnection inputConn = new InputConnection(input.ConnectionString, input.Database, input.Driver);
             OutputConnection outputConn = new OutputConnection(output.ConnectionString);
 
-            Instant starts = Instant.now();
-            // Create node + props
             List<String> tables = inputConn.GetTableName();
             // Transform tables in parallel
             int tCount = Runtime.getRuntime().availableProcessors();
+            tCount = 1; //REMOVE LATER
             ExecutorService executorService = Executors.newFixedThreadPool(tCount);
 
             ArrayList<Future<?>> tFinished = new ArrayList<>();
-            tables.forEach(t -> tFinished.add(executorService.submit(() -> inputConn.CreateNodesAndProperties(t))));
-            awaitTableCompletion(tFinished); // Wait for nodes and properties to finish creating
-            System.out.println("Nodes with properties created");
+
+            // Create node + props
+//            tables.forEach(t -> tFinished.add(executorService.submit(() -> inputConn.CreateNodesAndProperties(t))));
+//            awaitTableCompletion(tFinished); // Wait for nodes and properties to finish creating
+//            System.out.println("Nodes with properties created");
+
+            createEdges(inputConn, tables.get(3));
 
             // Create edges
-            tables.forEach(t -> tFinished.add(executorService.submit(() -> createEdges(inputConn, t))));
+//            tables.forEach(t -> tFinished.add(executorService.submit(() -> {
+//                createEdges(inputConn, t);
+//
+//            }
+            //)));
             awaitTableCompletion(tFinished); // Wait for edges to finish creating
             System.out.println("Edges created");
 
-            Instant ends = Instant.now();
-            System.out.println(Duration.between(starts, ends).toMillis());
             System.out.println("Mapping - Done.");
-            OutputConnection.Statistics();
-
-            Export.GenerateCSVs();
+//            OutputConnection.Statistics();
+//
+//            Export.GenerateCSVs();
 
         } catch (IOException e) {
             e.printStackTrace();

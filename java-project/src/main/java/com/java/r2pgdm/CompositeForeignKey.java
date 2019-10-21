@@ -33,4 +33,13 @@ public class CompositeForeignKey {
             this.TargetTable = fk.TargetTable;
         }
     }
+
+    @Override
+    public String toString() {
+        return "CompositeForeignKey{" +
+                "ForeignKeys=" + ForeignKeys +
+                ", SourceTable='" + SourceTable + '\'' +
+                ", TargetTable='" + TargetTable + '\'' +
+                '}';
+    }
 }
