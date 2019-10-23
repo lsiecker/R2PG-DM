@@ -128,7 +128,7 @@ public class InputConnection {
         sqlSB.append("SELECT rId FROM myTable WHERE ".concat(val).concat("='").concat(key).concat("';"));
 
         String sql = sqlSB.toString();
-        System.out.println(sql);
+
         try {
             Statement stmt = _con.createStatement();
             ResultSet values = stmt.executeQuery(sql);
@@ -276,6 +276,11 @@ public class InputConnection {
                     count++;
                 }
             }
+
+            if (!nodes.isEmpty() || !properties.isEmpty()) {
+                OutputConnection.InsertNodeRows(nodes);
+                OutputConnection.insertPropertyRow(properties);
+            }
         } catch (SQLException e) {
             e.printStackTrace();
             System.out.println(sql);
@@ -284,6 +289,7 @@ public class InputConnection {
 
     public void CreateEdges(CompositeForeignKey cfk, String t) {
         FileWriter fileWriter = null;
+
         try {
             fileWriter = new FileWriter("C:\\Users\\Jamiro.Leander\\Documents\\git\\Thesis\\MT-Code\\BPIC14\\Output\\" + "edgesLog-"+System.currentTimeMillis()+".txt");
         } catch (IOException e) {
@@ -322,7 +328,7 @@ public class InputConnection {
 
             ArrayList<Edge> edges = new ArrayList<>();
             int count = 0;
-            int batchSize = 10;
+            int batchSize = 250;
             System.out.println("creating edges for table " + t);
 
             for (int z = 0; z < length; z++) {
@@ -334,7 +340,7 @@ public class InputConnection {
                     throw new NullPointerException("rId or sId is -1.");
                 }
 
-                long start = System.currentTimeMillis();
+
                 // for each value -> get the node ids of the nodes with label
                 // cfk.SourceTable/cfk.TargetTable
                 // and has a property value = curr.Value
@@ -342,7 +348,7 @@ public class InputConnection {
                         curr.SourceAttribute, curr.Value);
                 List<String> tNodeIds = OutputConnection.JoinNodeAndProperty(curr.TargetRelationName,
                         curr.TargetAttribute, curr.Value);
-
+                // System.out.println(rId + ", " + sId + ", " + sNodeIds.size() + ", " + tNodeIds.size());
 
                 if (sNodeIds.size() > 0 && tNodeIds.size() > 0)
                 // For all ids obtained -> create edge from all source ids to all target ids.
@@ -364,6 +370,10 @@ public class InputConnection {
                         }
                     }
                 }
+            }
+
+            if (!edges.isEmpty()) {
+                OutputConnection.InsertEdgeRows(edges);
             }
         } catch (Exception e) {
             e.printStackTrace();

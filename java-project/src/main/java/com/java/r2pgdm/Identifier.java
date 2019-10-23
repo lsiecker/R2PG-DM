@@ -2,6 +2,7 @@ package com.java.r2pgdm;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -9,7 +10,7 @@ import lombok.Setter;
 public class Identifier {
     @Getter
     @Setter
-    private static Integer GlobalID = 1;
+    private static AtomicInteger GlobalID = new AtomicInteger(1);
 
     public static Integer id(Optional<Integer> rIdR, Optional<String> labelR, Optional<String> att,
             Optional<Integer> rIdS, Optional<String> labelS, Optional<List<String>> fksR, Optional<List<String>> fksS) {
@@ -22,7 +23,7 @@ public class Identifier {
                 }
             }
 
-            return GlobalID++;
+            return GlobalID.addAndGet(1);
         } catch (Exception e) {
             e.printStackTrace();
             return -1;

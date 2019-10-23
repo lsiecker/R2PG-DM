@@ -154,7 +154,7 @@ public class OutputConnection {
                 .concat(val).concat("' AND p.pkey='").concat(key).concat("' AND n.label='").concat(relName)
                 .concat("';");
         List<String> results = new ArrayList<>();
-        System.out.println(sql);
+
         try {
             Statement stmt = _con.createStatement();
             ResultSet values = stmt.executeQuery(sql);
@@ -185,9 +185,9 @@ public class OutputConnection {
             System.out.println(sql);
             e.printStackTrace();
         } finally {
-            System.out.println("# Nodes: ".concat(results.get(0)));
-            System.out.println("# Properties: ".concat(results.get(1)));
-            System.out.println("# Edges: ".concat(results.get(2)));
+            System.out.println("# Nodes: ".concat(results.get(1)));
+            System.out.println("# Properties: ".concat(results.get(2)));
+            System.out.println("# Edges: ".concat(results.get(0)));
         }
     }
 

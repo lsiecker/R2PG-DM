@@ -32,31 +32,28 @@ public class App {
             List<String> tables = inputConn.GetTableName();
             // Transform tables in parallel
             int tCount = Runtime.getRuntime().availableProcessors();
-            tCount = 1; //REMOVE LATER
             ExecutorService executorService = Executors.newFixedThreadPool(tCount);
 
             ArrayList<Future<?>> tFinished = new ArrayList<>();
 
             // Create node + props
-//            tables.forEach(t -> tFinished.add(executorService.submit(() -> inputConn.CreateNodesAndProperties(t))));
-//            awaitTableCompletion(tFinished); // Wait for nodes and properties to finish creating
-//            System.out.println("Nodes with properties created");
+            tables.forEach(t -> tFinished.add(executorService.submit(() -> inputConn.CreateNodesAndProperties(t))));
+            awaitTableCompletion(tFinished); // Wait for nodes and properties to finish creating
+            System.out.println("Nodes with properties created");
 
             createEdges(inputConn, tables.get(3));
 
             // Create edges
-//            tables.forEach(t -> tFinished.add(executorService.submit(() -> {
-//                createEdges(inputConn, t);
-//
-//            }
-            //)));
+            tables.forEach(t -> tFinished.add(executorService.submit(() -> createEdges(inputConn, t))));
             awaitTableCompletion(tFinished); // Wait for edges to finish creating
             System.out.println("Edges created");
 
             System.out.println("Mapping - Done.");
-//            OutputConnection.Statistics();
-//
-//            Export.GenerateCSVs();
+            OutputConnection.Statistics();
+
+            Export.GenerateCSVs();
+            System.out.println("Done");
+            System.exit(0);
 
         } catch (IOException e) {
             e.printStackTrace();
