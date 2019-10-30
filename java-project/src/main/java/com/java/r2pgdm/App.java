@@ -27,7 +27,7 @@ public class App {
             Config output = GetConfiguration(ini.get("output"));
 
             InputConnection inputConn = new InputConnection(input.ConnectionString, input.Database, input.Driver);
-            OutputConnection outputConn = new OutputConnection(output.ConnectionString);
+            OutputConnection outputConn = new OutputConnection(inputConn);
 
             List<String> tables = inputConn.GetTableName();
             // Transform tables in parallel
@@ -41,7 +41,6 @@ public class App {
             awaitTableCompletion(tFinished); // Wait for nodes and properties to finish creating
             System.out.println("Nodes with properties created");
 
-            createEdges(inputConn, tables.get(3));
 
             // Create edges
             tables.forEach(t -> tFinished.add(executorService.submit(() -> createEdges(inputConn, t))));
@@ -73,6 +72,9 @@ public class App {
 
     private static void createEdges(InputConnection inputConn, String t) {
         List<CompositeForeignKey> fks = inputConn.GetForeignKeys(t);
+        for (CompositeForeignKey fk : fks) {
+            System.out.println(fk);
+        }
         System.out.println(fks.size() + " fks where found in table " + t);
         fks.forEach(fk -> inputConn.CreateEdges(fk, t));
     }

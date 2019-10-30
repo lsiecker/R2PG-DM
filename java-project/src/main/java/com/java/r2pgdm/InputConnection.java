@@ -18,11 +18,11 @@ import org.apache.commons.lang3.tuple.Pair;
 public class InputConnection {
 
     private static final String COLUMN_NAME = "COLUMN_NAME";
-    private char _Quoting = '`';
+    char _Quoting = '`';
     private static final String[] TYPES = new String[] { "TABLE" };
-    private Connection _con;
-    private DatabaseMetaData _metaData;
-    private String _schema;
+    Connection _con;
+    DatabaseMetaData _metaData;
+    String _schema;
 
     public InputConnection(String url, String schema, String driver) {
         this._schema = schema;
@@ -76,6 +76,7 @@ public class InputConnection {
                     String sa = foreignKeys.getString("FKCOLUMN_NAME");
                     String ta = foreignKeys.getString("PKCOLUMN_NAME");
                     Integer keySeq = Integer.parseInt(foreignKeys.getString("KEY_SEQ"));
+                    System.out.println(keySeq);
                     ForeignKey tempFk = new ForeignKey(st, tt, sa, ta);
 
                     for (int i = 0; i < Fks.size() && !flag; i++) {
@@ -305,10 +306,6 @@ public class InputConnection {
 //            printWriter.println("cfk foreginkeys size: " + cfk.ForeignKeys.size());
 //            printWriter.println("results size: " + results.size());
 
-//            for (Column r : results) {
-//                printWriter.println(r);
-//            }
-
 //            System.out.println("Joined foreign keys for table " + t);
 
 //            printWriter.println("Writing foreignkeys");
@@ -328,10 +325,10 @@ public class InputConnection {
 
             ArrayList<Edge> edges = new ArrayList<>();
             int count = 0;
-            int batchSize = 250;
+            int batchSize = 1000;
             System.out.println("creating edges for table " + t);
 
-            for (int z = 0; z < length; z++) {
+            for (int z = 0; z < length; z ++) {
                 Column curr = results.get(z);
                 // Get tuple ids.
                 rId = GetTupleIdFromRelation(curr.SourceRelationName, curr.SourceAttribute, curr.Value);
@@ -348,7 +345,16 @@ public class InputConnection {
                         curr.SourceAttribute, curr.Value);
                 List<String> tNodeIds = OutputConnection.JoinNodeAndProperty(curr.TargetRelationName,
                         curr.TargetAttribute, curr.Value);
-                // System.out.println(rId + ", " + sId + ", " + sNodeIds.size() + ", " + tNodeIds.size());
+                System.out.println(curr);
+                 System.out.println(rId + ", " + sId);
+                System.out.println("sNode");
+                 for (String id : sNodeIds) {
+                    System.out.println(id);
+                }
+                 System.out.println("tNode");
+                for (String id : tNodeIds) {
+                    System.out.println(id);
+                }
 
                 if (sNodeIds.size() > 0 && tNodeIds.size() > 0)
                 // For all ids obtained -> create edge from all source ids to all target ids.

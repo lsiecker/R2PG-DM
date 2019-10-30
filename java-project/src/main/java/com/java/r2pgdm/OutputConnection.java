@@ -11,9 +11,14 @@ import com.java.r2pgdm.graph.Property;
 public class OutputConnection {
 
     public static Connection _con;
+    private String _schema;
+    private char _Quoting;
 
-    public OutputConnection(String url) {
-        Connect(url);
+
+    public OutputConnection(InputConnection input) {
+        _schema = input._schema;
+        this._Quoting = input._Quoting;
+        _con = input._con;
         CreateGraphSQL();
     }
 
