@@ -32,6 +32,7 @@ public class OutputConnection {
     }
 
     private void DropTablesIfExists() {
+        System.out.println("Dropping old tables");
         try {
             Statement stmt = _con.createStatement();
             stmt.executeUpdate("DROP TABLE IF EXISTS node;");
@@ -190,9 +191,9 @@ public class OutputConnection {
             System.out.println(sql);
             e.printStackTrace();
         } finally {
-            System.out.println("# Nodes: ".concat(results.get(1)));
-            System.out.println("# Properties: ".concat(results.get(2)));
-            System.out.println("# Edges: ".concat(results.get(0)));
+            System.out.println("# Nodes: ".concat(results.get(0)));
+            System.out.println("# Properties: ".concat(results.get(1)));
+            System.out.println("# Edges: ".concat(results.get(2)));
         }
     }
 

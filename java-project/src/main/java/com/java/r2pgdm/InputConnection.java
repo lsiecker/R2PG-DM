@@ -4,10 +4,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 import com.java.r2pgdm.graph.Edge;
 import com.java.r2pgdm.graph.Node;
@@ -19,7 +16,7 @@ public class InputConnection {
 
     private static final String COLUMN_NAME = "COLUMN_NAME";
     char _Quoting = '`';
-    private static final String[] TYPES = new String[] { "TABLE" };
+    private static final String[] TYPES = new String[]{"TABLE"};
     Connection _con;
     DatabaseMetaData _metaData;
     String _schema;
@@ -56,7 +53,11 @@ public class InputConnection {
         try {
             ResultSet rs = _metaData.getTables(_schema, null, "%", TYPES);
             while (rs.next()) {
-                tables.add(rs.getString(3));
+                String name = rs.getString(3);
+                String[] forbidden = {"node", "property", "edge"};
+                if (!Arrays.asList(forbidden).contains(name)) {
+                    tables.add(name);
+                }
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -76,7 +77,7 @@ public class InputConnection {
                     String sa = foreignKeys.getString("FKCOLUMN_NAME");
                     String ta = foreignKeys.getString("PKCOLUMN_NAME");
                     Integer keySeq = Integer.parseInt(foreignKeys.getString("KEY_SEQ"));
-                    System.out.println(keySeq);
+
                     ForeignKey tempFk = new ForeignKey(st, tt, sa, ta);
 
                     for (int i = 0; i < Fks.size() && !flag; i++) {
@@ -139,68 +140,6 @@ public class InputConnection {
                 }
             }
             return null;
-        } catch (SQLException e) {
-            e.printStackTrace();
-            System.out.println(sql);
-            return null;
-        }
-    }
-
-    private List<Column> JoinFks(CompositeForeignKey cfk, String t) {
-        String sqlSel = "SELECT ";
-        String sqlWhe = " ON ";
-
-        for (int i = 0; i < cfk.ForeignKeys.size(); i++) {
-            ForeignKey fk = cfk.ForeignKeys.get(i);
-            sqlSel = sqlSel.concat("temp1.").concat(fk.SourceAttribute).concat(",");
-            sqlWhe = sqlWhe.concat("temp1.").concat(fk.SourceAttribute).concat(" = ").concat("temp2.")
-                    .concat(fk.TargetAttribute).concat(" AND ");
-        }
-
-        sqlSel = sqlSel.substring(0, sqlSel.length() - 1);
-        sqlWhe = sqlWhe.substring(0, sqlWhe.length() - 5);
-        String sql = sqlSel.concat(" FROM ").concat(Character.toString(_Quoting)).concat(cfk.SourceTable)
-                .concat(Character.toString(_Quoting)).concat(" AS temp1 INNER JOIN ")
-                .concat(Character.toString(_Quoting)).concat(cfk.TargetTable).concat(Character.toString(_Quoting))
-                .concat(" AS temp2 ").concat(sqlWhe).concat(";");
-
-        try {
-            Statement stmt = _con.createStatement();
-            ResultSet values = stmt.executeQuery(sql);
-
-            ResultSetMetaData valuesMd = values.getMetaData();
-            List<Column> local = new ArrayList<>();
-            // Join and create columns for each tuple. Column represents one fk with value.
-            // (no duplicates allowed.)
-
-            long start = System.currentTimeMillis();
-            long count = 0;
-            int printBatchSize = 25000;
-
-            while (values.next()) {
-                int cols = valuesMd.getColumnCount();
-                for (int i = 1; i <= cols; i++) {
-                    String currentVal = values.getString(i);
-                    String relName = cfk.SourceTable;
-                    ForeignKey currFk = cfk.ForeignKeys.get(i - 1);
-                    Column newCol = new Column(relName, valuesMd.getColumnLabel(i), currentVal, currFk.TargetTable,
-                            currFk.TargetAttribute);
-                    Optional<Column> checkExists = local.stream()
-                            .filter(c -> c.SourceAttribute.equals(newCol.SourceAttribute)
-                                    && c.SourceRelationName.equals(newCol.SourceRelationName)
-                                    && c.TargetAttribute.equals(newCol.TargetAttribute)
-                                    && c.TargetRelationName.equals(newCol.TargetRelationName)
-                                    && c.Value.equals(newCol.Value))
-                            .findFirst();
-                    if (!checkExists.isPresent()) {
-                        local.add(newCol);
-                    }
-                }
-                count++;
-                if (count >= printBatchSize && count % printBatchSize == 0)
-                    System.out.println(count + " foreign keys joined for table " + t);
-            }
-            return local;
         } catch (SQLException e) {
             e.printStackTrace();
             System.out.println(sql);
@@ -288,102 +227,169 @@ public class InputConnection {
         }
     }
 
-    public void CreateEdges(CompositeForeignKey cfk, String t) {
-        FileWriter fileWriter = null;
+    private String joinableColumnsQuery(CompositeForeignKey cfk, String t) {
+        String sqlSel = "WITH joinableColumns as (SELECT DISTINCT ";
+        String sqlWhe = " ON ";
 
-        try {
-            fileWriter = new FileWriter("C:\\Users\\Jamiro.Leander\\Documents\\git\\Thesis\\MT-Code\\BPIC14\\Output\\" + "edgesLog-"+System.currentTimeMillis()+".txt");
-        } catch (IOException e) {
-            e.printStackTrace();
+        for (int i = 0; i < cfk.ForeignKeys.size(); i++) {
+            ForeignKey fk = cfk.ForeignKeys.get(i);
+            sqlSel = sqlSel.concat("sourceTable.").concat(fk.SourceAttribute).concat(",");
+            sqlWhe = sqlWhe.concat("sourceTable.").concat(fk.SourceAttribute).concat(" = ").concat("targetTable.")
+                    .concat(fk.TargetAttribute).concat(" AND ");
         }
-        PrintWriter printWriter = new PrintWriter(fileWriter);
+
+        sqlSel = sqlSel.substring(0, sqlSel.length() - 1);
+        sqlWhe = sqlWhe.substring(0, sqlWhe.length() - 5);
+
+        String sql = sqlSel.concat(" FROM ").concat(Character.toString(_Quoting)).concat(cfk.SourceTable)
+                .concat(Character.toString(_Quoting)).concat(" AS sourceTable INNER JOIN ")
+                .concat(Character.toString(_Quoting)).concat(cfk.TargetTable).concat(Character.toString(_Quoting))
+                .concat(" AS targetTable ").concat(sqlWhe).concat(")");
+
+        return sql;
+    }
+
+    private String sourceNodeQuery(CompositeForeignKey cfk, String t) {
+        String sql = "sourceNodes as (SELECT n.id, p.pkey, p.pvalue FROM node n INNER JOIN property p on " +
+                "n.id = p.id AND n.label = '" + cfk.SourceTable + "' AND (";
+
+        for (int i = 0; i < cfk.ForeignKeys.size(); i++) {
+            ForeignKey fk = cfk.ForeignKeys.get(i);
+            if (i > 0) {
+                sql = sql.concat(" OR ");
+            }
+            sql = sql.concat("p.pkey = '").concat(fk.SourceAttribute).concat("'");
+        }
+        sql = sql.concat(("))"));
+        return sql;
+    }
+
+    private String targetNodeQuery(CompositeForeignKey cfk, String t) {
+        String sql = "targetNodes as (SELECT n.id, p.pkey, p.pvalue FROM node n INNER JOIN property p on " +
+                "n.id = p.id AND n.label = '" + cfk.TargetTable + "' AND (";
+
+        for (int i = 0; i < cfk.ForeignKeys.size(); i++) {
+            ForeignKey fk = cfk.ForeignKeys.get(i);
+            if (i > 0) {
+                sql = sql.concat(" OR ");
+            }
+            sql = sql.concat("p.pkey = '").concat(fk.TargetAttribute).concat("'");
+        }
+        sql = sql.concat(("))"));
+        return sql;
+    }
+
+    private String pivotedSourceNodeQuery(CompositeForeignKey cfk, String t) {
+        String sql = "pivotedSourceNodes as (SELECT id as sourceId";
+        for (int i = 0; i < cfk.ForeignKeys.size(); i++) {
+            ForeignKey fk = cfk.ForeignKeys.get(i);
+            sql = sql.concat(", MAX(CASE WHEN pkey='")
+                    .concat(fk.SourceAttribute)
+                    .concat("' THEN pvalue END) ")
+                    .concat(fk.SourceAttribute);
+        }
+        return sql.concat(" FROM sourceNodes s GROUP BY s.id)");
+    }
+
+    private String pivotedTargetNodeQuery(CompositeForeignKey cfk, String t) {
+        String sql = "pivotedTargetNodes as (SELECT id as targetId";
+        for (int i = 0; i < cfk.ForeignKeys.size(); i++) {
+            ForeignKey fk = cfk.ForeignKeys.get(i);
+            sql = sql.concat(", MAX(CASE WHEN pkey='")
+                    .concat(fk.TargetAttribute)
+                    .concat("' THEN pvalue END) ")
+                    .concat(fk.TargetAttribute);
+        }
+        return sql.concat(" FROM TargetNodes s GROUP BY s.id)");
+    }
+
+    private String joinedSourceNodesQuery(CompositeForeignKey cfk, String t) {
+        String sql = "joinedSourceNodes as ( SELECT s.sourceId";
+
+        for (int i = 0; i < cfk.ForeignKeys.size(); i++) {
+            ForeignKey fk = cfk.ForeignKeys.get(i);
+            sql = sql.concat(", s.").concat(fk.SourceAttribute);
+        }
+        sql = sql.concat(" FROM pivotedSourceNodes s INNER JOIN joinableColumns j ON ");
+        for (int i = 0; i < cfk.ForeignKeys.size(); i++) {
+            ForeignKey fk = cfk.ForeignKeys.get(i);
+            if (i > 0) {
+                sql = sql.concat(" AND ");
+            }
+            sql = sql.concat("s.")
+                    .concat(fk.SourceAttribute)
+                    .concat(" = j.")
+                    .concat("j.")
+                    .concat(fk.SourceAttribute);
+        }
+        return sql.concat(")");
+    }
+
+    private String finalEdgeJoinString(CompositeForeignKey cfk, String t) {
+        String sql = "SELECT s.sourceId, t.targetId FROM joinedSourceNodes s LEFT JOIN pivotedTargetNodes t ON ";
+        for (int i = 0; i < cfk.ForeignKeys.size(); i++) {
+            ForeignKey fk = cfk.ForeignKeys.get(i);
+            if (i > 0) {
+                sql = sql.concat(" AND ");
+            }
+            sql = sql.concat("s.")
+                    .concat(fk.SourceAttribute)
+                    .concat(" = ")
+                    .concat("t.")
+                    .concat(fk.TargetAttribute);
+        }
+
+        return sql;
+    }
+
+    public void createEdges(CompositeForeignKey cfk, String t) {
+        String sql = "";
+
+        sql = sql.concat(joinableColumnsQuery(cfk, t))
+                .concat(", ")
+                .concat(sourceNodeQuery(cfk, t))
+                .concat(", ")
+                .concat(targetNodeQuery(cfk, t))
+                .concat(", ")
+                .concat(pivotedSourceNodeQuery(cfk, t))
+                .concat(", ")
+                .concat(pivotedTargetNodeQuery(cfk, t))
+                .concat(", ")
+                .concat(joinedSourceNodesQuery(cfk, t))
+                .concat(finalEdgeJoinString(cfk, t));
 
         try {
-            List<Column> results = JoinFks(cfk, t);
-            List<String> fksR = new ArrayList<>();
-            List<String> fksS = new ArrayList<>();
-
-//            printWriter.println("cfk foreginkeys size: " + cfk.ForeignKeys.size());
-//            printWriter.println("results size: " + results.size());
-
-//            System.out.println("Joined foreign keys for table " + t);
-
-//            printWriter.println("Writing foreignkeys");
-            // Create set of foreign keys
-            for (int i = 0; i < cfk.ForeignKeys.size(); i++) {
-                ForeignKey fk = cfk.ForeignKeys.get(i);
-                fksR.add(fk.SourceAttribute);
-                fksS.add(fk.TargetAttribute);
-                //printWriter.println(fk);
-            }
-
-            Integer rId = -1, sId = -1;
-
-            // Create edges here: (take into consideration composed Fks (size of results /
-            // size of foreign keys composing the Composed fk))
-            int length = results.size() / cfk.ForeignKeys.size();
+            ResultSet rs = _con.createStatement().executeQuery(sql);
 
             ArrayList<Edge> edges = new ArrayList<>();
             int count = 0;
             int batchSize = 1000;
             System.out.println("creating edges for table " + t);
 
-            for (int z = 0; z < length; z ++) {
-                Column curr = results.get(z);
-                // Get tuple ids.
-                rId = GetTupleIdFromRelation(curr.SourceRelationName, curr.SourceAttribute, curr.Value);
-                sId = GetTupleIdFromRelation(curr.TargetRelationName, curr.TargetAttribute, curr.Value);
-                if (rId == -1 || sId == -1) {
-                    throw new NullPointerException("rId or sId is -1.");
-                }
+            while (rs.next()) {
+                Integer id = Identifier.id(null, Optional.of(cfk.SourceTable), null,
+                        null, Optional.of(cfk.TargetTable), null, null);
+                String sNodeId = rs.getString("sourceId");
+                String tNodeId = rs.getString("targetId");
 
+                Edge e = new Edge(id.toString(), sNodeId, tNodeId, cfk.SourceTable.concat("-").concat(cfk.TargetTable));
+                edges.add(e);
+                count++;
 
-                // for each value -> get the node ids of the nodes with label
-                // cfk.SourceTable/cfk.TargetTable
-                // and has a property value = curr.Value
-                List<String> sNodeIds = OutputConnection.JoinNodeAndProperty(curr.SourceRelationName,
-                        curr.SourceAttribute, curr.Value);
-                List<String> tNodeIds = OutputConnection.JoinNodeAndProperty(curr.TargetRelationName,
-                        curr.TargetAttribute, curr.Value);
-                System.out.println(curr);
-                 System.out.println(rId + ", " + sId);
-                System.out.println("sNode");
-                 for (String id : sNodeIds) {
-                    System.out.println(id);
-                }
-                 System.out.println("tNode");
-                for (String id : tNodeIds) {
-                    System.out.println(id);
-                }
+                if (edges.size() >= batchSize) {
+                    OutputConnection.InsertEdgeRows(edges);
+                    System.out.println("Added " + count + " Edges for table " + t);
 
-                if (sNodeIds.size() > 0 && tNodeIds.size() > 0)
-                // For all ids obtained -> create edge from all source ids to all target ids.
-                for (int i = 0; i < sNodeIds.size(); i++) {
-                    String sNodeId = sNodeIds.get(i);
-                    for (int j = 0; j < tNodeIds.size(); j++) {
-                        Integer id = Identifier.id(Optional.of(rId), Optional.of(cfk.SourceTable), null,
-                                Optional.of(sId), Optional.of(cfk.TargetTable), Optional.of(fksR), Optional.of(fksS));
-                        String tNodeId = tNodeIds.get(j);
-                        Edge e = new Edge(id.toString(), sNodeId, tNodeId, cfk.SourceTable.concat("-").concat(cfk.TargetTable));
-                        edges.add(e);
-                        count++;
-
-                        if (edges.size() >= batchSize){
-                            OutputConnection.InsertEdgeRows(edges);
-                            System.out.println("Added " + count + " Edges for table " + t);
-
-                            edges.clear();
-                        }
-                    }
+                    edges.clear();
                 }
             }
 
             if (!edges.isEmpty()) {
                 OutputConnection.InsertEdgeRows(edges);
             }
-        } catch (Exception e) {
+        } catch (SQLException e) {
+            System.out.println(sql);
             e.printStackTrace();
         }
-        printWriter.close();
     }
 }

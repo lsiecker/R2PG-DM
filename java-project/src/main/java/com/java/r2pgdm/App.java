@@ -4,8 +4,6 @@ import java.io.File;
 import java.io.IOException;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -13,7 +11,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import org.ini4j.InvalidFileFormatException;
 import org.ini4j.Wini;
 import org.ini4j.Profile.Section;
 
@@ -22,9 +19,9 @@ public class App {
 
     public static void main(String[] args) {
         try {
+            Long start = System.currentTimeMillis();
             Wini ini = new Wini(new File("config.ini"));
             Config input = GetConfiguration(ini.get("input"));
-            Config output = GetConfiguration(ini.get("output"));
 
             InputConnection inputConn = new InputConnection(input.ConnectionString, input.Database, input.Driver);
             OutputConnection outputConn = new OutputConnection(inputConn);
@@ -52,9 +49,16 @@ public class App {
 
             Export.GenerateCSVs();
             System.out.println("Done");
-            System.exit(0);
+            inputConn._con.commit();
+            inputConn._con.close();
+
+            Long end = System.currentTimeMillis();
+
+            System.out.println("Finished in " + (end-start)/60000d + " minutes.");
 
         } catch (IOException e) {
+            e.printStackTrace();
+        } catch (SQLException e) {
             e.printStackTrace();
         }
     }
@@ -72,11 +76,8 @@ public class App {
 
     private static void createEdges(InputConnection inputConn, String t) {
         List<CompositeForeignKey> fks = inputConn.GetForeignKeys(t);
-        for (CompositeForeignKey fk : fks) {
-            System.out.println(fk);
-        }
         System.out.println(fks.size() + " fks where found in table " + t);
-        fks.forEach(fk -> inputConn.CreateEdges(fk, t));
+        fks.forEach(fk -> inputConn.createEdges(fk, t));
     }
 
     private static Config GetConfiguration(Section section) {
