@@ -6,24 +6,21 @@ import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
 
+/**
+ * Represents a node in the graph
+ */
 public class Node {
+
     @Getter
     @Setter
-    public String Id;
+    public String id; // Unique id of this node
+
     @Getter
     @Setter
-    public String Label;
-    @Getter
-    @Setter
-    public List<Property> Props;
+    public String label; // Label of this node
 
     public Node(String id, String label) {
-        this.Id = id;
-        this.Label = label;
-        this.Props = new ArrayList<>();
-    }
-
-    public void AddProp(Property p) {
-        Props.add(p);
+        this.id = id;
+        this.label = label;
     }
 }

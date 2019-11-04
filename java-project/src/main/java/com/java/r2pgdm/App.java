@@ -23,10 +23,11 @@ public class App {
             Wini ini = new Wini(new File("config.ini"));
             Config input = GetConfiguration(ini.get("input"));
 
-            InputConnection inputConn = new InputConnection(input.ConnectionString, input.Database, input.Driver);
-            OutputConnection outputConn = new OutputConnection(inputConn);
+            InputConnection inputConn = new InputConnection(input.connectionString, input.database, input.driver);
+            new OutputConnection(inputConn);
 
-            List<String> tables = inputConn.GetTableName();
+            List<String> tables = inputConn.retrieveTableNames();
+
             // Transform tables in parallel
             int tCount = Runtime.getRuntime().availableProcessors();
             ExecutorService executorService = Executors.newFixedThreadPool(tCount);
@@ -34,52 +35,54 @@ public class App {
             ArrayList<Future<?>> tFinished = new ArrayList<>();
 
             // Create node + props
-            tables.forEach(t -> tFinished.add(executorService.submit(() -> inputConn.CreateNodesAndProperties(t))));
+            tables.forEach(t -> tFinished.add(executorService.submit(() -> inputConn.createNodesAndProperties(t))));
             awaitTableCompletion(tFinished); // Wait for nodes and properties to finish creating
             System.out.println("Nodes with properties created");
 
 
             // Create edges
-            tables.forEach(t -> tFinished.add(executorService.submit(() -> createEdges(inputConn, t))));
+            tables.forEach(t -> tFinished.add(executorService.submit(() -> OutputConnection.createEdges(inputConn, t))));
             awaitTableCompletion(tFinished); // Wait for edges to finish creating
             System.out.println("Edges created");
 
-            System.out.println("Mapping - Done.");
-            OutputConnection.Statistics();
+            OutputConnection.printStatistics();
 
-            Export.GenerateCSVs();
-            System.out.println("Done");
-            inputConn._con.commit();
-            inputConn._con.close();
+            Export.generateCSVs();
+            System.out.println("csv files generated");
+
+            // Clean up database connection
+            inputConn.conn.commit();
+            inputConn.conn.close();
 
             Long end = System.currentTimeMillis();
 
             System.out.println("Finished in " + (end-start)/60000d + " minutes.");
 
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (SQLException e) {
+        } catch (IOException | SQLException e) {
             e.printStackTrace();
         }
     }
 
-    private static void awaitTableCompletion(ArrayList<Future<?>> tFinished) {
-        tFinished.forEach((future) ->{
+    /**
+     * returns when all threads in `threads` to complete
+     * @param threads Arraylist containing Futures (We don't care about the return type)
+     */
+    private static void awaitTableCompletion(ArrayList<Future<?>> threads) {
+        threads.forEach((future) ->{
             try {
                 future.get();
             } catch (InterruptedException | ExecutionException e) {
                 e.printStackTrace();
             }
         });
-        tFinished.clear();
+        threads.clear();
     }
 
-    private static void createEdges(InputConnection inputConn, String t) {
-        List<CompositeForeignKey> fks = inputConn.GetForeignKeys(t);
-        System.out.println(fks.size() + " fks where found in table " + t);
-        fks.forEach(fk -> inputConn.createEdges(fk, t));
-    }
-
+    /**
+     * reads a section from the config.ini
+     * @param section section to retrieve
+     * @return Program configuration
+     */
     private static Config GetConfiguration(Section section) {
         if (section.getName().equals("input")) {
             return new Config(section.get("connectionString"), section.get("driver"), section.get("database"));

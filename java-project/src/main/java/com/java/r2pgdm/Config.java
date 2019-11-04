@@ -3,26 +3,32 @@ package com.java.r2pgdm;
 import lombok.Getter;
 import lombok.Setter;
 
-public class Config {
-    @Getter
-    @Setter
-    public String Driver;
-    @Getter
-    @Setter
-    public String Database;
-    @Getter
-    @Setter
-    public String ConnectionString;
+/**
+ * Contains various environment settings set by the program's user in config.ini
+ */
+class Config {
 
-    public Config(String connString, String driver, String db) {
-        this.Driver = driver;
-        this.Database = db;
-        this.ConnectionString = connString;
+    @Getter
+    @Setter
+    String driver; // Name of the sql driver
+
+    @Getter
+    @Setter
+    String database; // Name of the database
+
+    @Getter
+    @Setter
+    String connectionString; // JDBC connection string
+
+    Config(String connString, String driver, String db) {
+        this.driver = driver;
+        this.database = db;
+        this.connectionString = connString;
     }
 
-    public Config(String connString) {
-        this.Driver = null;
-        this.Database = null;
-        this.ConnectionString = connString;
+    Config(String connString) {
+        this.driver = null;
+        this.database = null;
+        this.connectionString = connString;
     }
 }

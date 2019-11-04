@@ -8,33 +8,29 @@ import com.java.r2pgdm.graph.Edge;
 import com.java.r2pgdm.graph.Node;
 import com.java.r2pgdm.graph.Property;
 
+/**
+ * Contains functionality regarding output to the input database
+ */
 public class OutputConnection {
 
-    public static Connection _con;
-    private String _schema;
-    private char _Quoting;
+    private static Connection conn;
 
-
+    /**
+     * Since output is written to the input connection we reuse the input connection
+     * @param input Connection to the input database
+     */
     public OutputConnection(InputConnection input) {
-        _schema = input._schema;
-        this._Quoting = input._Quoting;
-        _con = input._con;
-        CreateGraphSQL();
+        conn = input.conn;
+        createGraphSQL();
     }
 
-    private void Connect(String url) {
-        try {
-            _con = DriverManager.getConnection(url);
-            System.out.println("Connection for output established.");
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void DropTablesIfExists() {
+    /**
+     * Drops tables generated in the input database while creating the mapping between SQL and Neo4J
+     */
+    private void dropTablesIfExists() {
         System.out.println("Dropping old tables");
         try {
-            Statement stmt = _con.createStatement();
+            Statement stmt = conn.createStatement();
             stmt.executeUpdate("DROP TABLE IF EXISTS node;");
             stmt.executeUpdate("DROP TABLE IF EXISTS edge;");
             stmt.executeUpdate("DROP TABLE IF EXISTS property;");
@@ -43,18 +39,35 @@ public class OutputConnection {
         }
     }
 
-    private void CreateNodeTable() {
+    /**
+     * Initializes the input database to accept new output
+     */
+    private void createGraphSQL() {
+        dropTablesIfExists();
+        createNodeTable();
+        createEdgeTable();
+        createPropertyTable();
+        System.out.println("Mapping - Created tables.");
+    }
+
+    /**
+     * Creates a table in the input database that will store nodes
+     */
+    private void createNodeTable() {
         try {
-            Statement stmt = _con.createStatement();
+            Statement stmt = conn.createStatement();
             stmt.executeUpdate("CREATE TABLE node(id INTEGER NOT NULL, label TEXT, PRIMARY KEY (id));");
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
 
-    private void CreateEdgeTable() {
+    /**
+     * Creates a table in the input database that will store edges
+     */
+    private void createEdgeTable() {
         try {
-            Statement stmt = _con.createStatement();
+            Statement stmt = conn.createStatement();
             stmt.executeUpdate(
                     "CREATE TABLE edge(id INTEGER NOT NULL, srcId INTEGER, tgtId INTEGER, label TEXT, PRIMARY KEY (id));");
         } catch (SQLException e) {
@@ -62,9 +75,12 @@ public class OutputConnection {
         }
     }
 
-    private void CreatePropertyTable() {
+    /**
+     * Creates a table in the input database that will store node properties
+     */
+    private void createPropertyTable() {
         try {
-            Statement stmt = _con.createStatement();
+            Statement stmt = conn.createStatement();
             stmt.executeUpdate(
                     "CREATE TABLE property(id INTEGER NOT NULL, pkey VARCHAR(256), pvalue TEXT, PRIMARY KEY (id, pkey));");
         } catch (SQLException e) {
@@ -72,117 +88,147 @@ public class OutputConnection {
         }
     }
 
-    public static ArrayList<Property> createPropertyRow(ResultSet values, ResultSetMetaData valuesMd, String currIdentifier) {
+    /**
+     * Transforms one database row to a list of properties belonging to the node that represents said databasse row
+     * @param values ResultSet containing rows from one table in the input database
+     * @param valuesMd ResultSetMetadata describing the structure `values` parameter
+     * @param nodeIdentifier Identifier that belongs to the node that describes this database row.
+     * @return ArrayList of unique properties belonging to the node that represents a database row
+     */
+    static ArrayList<Property> createPropertyRow(ResultSet values, ResultSetMetaData valuesMd, String nodeIdentifier) {
         ArrayList<Property> properties = new ArrayList<>();
+
         try {
-            int length = valuesMd.getColumnCount();
+            int length = valuesMd.getColumnCount(); // number of cells in a row
+
+            // Create a property for each row cell
             for (int i = 1; i < length; i++) {
-                String currAtt = valuesMd.getColumnName(i);
-                Object currVal = values.getObject(i);
-                if (currVal != null) {
-                    properties.add(new Property(currIdentifier, currAtt, currVal.toString()));
+                String attributeName = valuesMd.getColumnName(i);
+                Object attributeValue = values.getObject(i);
+
+                // Cell might contain null, in which case we don't want to add a property to the node
+                if (attributeValue != null) {
+                    properties.add(new Property(nodeIdentifier, attributeName, attributeValue.toString()));
                 }
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
+
         return properties;
     }
 
-    public static void InsertEdgeRows(ArrayList<Edge> edges) {
-        StringBuilder sql = new StringBuilder("INSERT INTO edge VALUES(?,?,?,?)");
+    static void createEdges(InputConnection inputConn, String t) {
+        List<CompositeForeignKey> fks = inputConn.retrieveCompositeForeignKeys(t);
+        System.out.println(fks.size() + " fks where found in table " + t);
+        fks.forEach(fk -> inputConn.insertEdges(fk, t));
+    }
 
-        for (int i = 1; i < edges.size(); i++) {
-            sql.append(",(?,?,?,?)");
-        }
+    /**
+     * Inserts a collection of edges into the input database
+     * @param edges ArrayList of unique edges
+     */
+    static void insertEdgeRows(ArrayList<Edge> edges) {
+        if (edges.size()  > 0) {
+            // Initialize the insert query (edges has at least one edge)
+            StringBuilder sql = new StringBuilder("INSERT INTO edge VALUES(?,?,?,?)");
 
-        try {
-            PreparedStatement statementEdges = OutputConnection._con.prepareStatement(sql.toString());
-
-            for (int i = 0; i < edges.size(); i++) {
-                Edge edge = edges.get(i);
-
-                statementEdges.setInt(4*i + 1, Integer.parseInt(edge.Id));
-                statementEdges.setInt(4*i + 2, Integer.parseInt(edge.SrcId));
-                statementEdges.setInt(4*i + 3, Integer.parseInt(edge.TgtId));
-                statementEdges.setString(4*i + 4, edge.Label);
+            // Expand the input query depending on the number of edges to be inserted
+            for (int i = 1; i < edges.size(); i++) {
+                sql.append(",(?,?,?,?)");
             }
 
-            statementEdges.executeUpdate();
-        } catch (SQLException e) {
-            e.printStackTrace();
+            try {
+                PreparedStatement statementEdges = OutputConnection.conn.prepareStatement(sql.toString());
+
+                // Replace the query variables by values
+                for (int i = 0; i < edges.size(); i++) {
+                    Edge edge = edges.get(i);
+                    statementEdges.setInt(4 * i + 1, Integer.parseInt(edge.id));
+                    statementEdges.setInt(4 * i + 2, Integer.parseInt(edge.sourceId));
+                    statementEdges.setInt(4 * i + 3, Integer.parseInt(edge.targetId));
+                    statementEdges.setString(4 * i + 4, edge.label);
+                }
+
+                statementEdges.executeUpdate();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
     }
 
-    public static void insertPropertyRow(ArrayList<Property> properties) {
-        StringBuilder sql = new StringBuilder("INSERT INTO property VALUES(?,?,?)");
+    /**
+     * Inserts a collection of properties into the input database
+     * @param properties ArrayList of unique properties
+     */
+    static void insertPropertyRow(ArrayList<Property> properties) {
+        if (properties.size() > 0) {
+            // Initialize the insert query (properties has at least one property)
+            StringBuilder sql = new StringBuilder("INSERT INTO property VALUES(?,?,?)");
 
-        for (int i = 1; i < properties.size(); i++) {
-            sql.append(",(?,?,?)");
-        }
-
-        try {
-            PreparedStatement st = _con.prepareStatement(sql.toString());
-            for (int i = 0; i < properties.size(); i++) {
-                Property prop = properties.get(i);
-                st.setInt(3 * i + 1, Integer.parseInt(prop.Id));
-                st.setString(3 * i + 2, prop.Key);
-                st.setString(3 * i + 3, prop.Value);
+            // Expand the input query depending on the number of properties to be inserted
+            for (int i = 1; i < properties.size(); i++) {
+                sql.append(",(?,?,?)");
             }
-            st.executeUpdate();
-        } catch (SQLException e) {
-            e.printStackTrace();
+
+            try {
+                PreparedStatement st = conn.prepareStatement(sql.toString());
+
+                // Replace the query variables by values
+                for (int i = 0; i < properties.size(); i++) {
+                    Property prop = properties.get(i);
+                    st.setInt(3 * i + 1, Integer.parseInt(prop.id));
+                    st.setString(3 * i + 2, prop.key);
+                    st.setString(3 * i + 3, prop.value);
+                }
+
+                st.executeUpdate();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
     }
 
-    public static void InsertNodeRows(ArrayList<Node> nodes) {
-        StringBuilder sql = new StringBuilder("INSERT INTO node VALUES(?,?)");
+    /**
+     * Inserts a collection of nodes into the input database
+     * @param nodes ArrayList of unique nodes
+     */
+    static void insertNodeRows(ArrayList<Node> nodes) {
+        if (nodes.size() > 0) {
+            // Initialize the insert query (nodes has at least one node)
+            StringBuilder sql = new StringBuilder("INSERT INTO node VALUES(?,?)");
 
-        for (int i = 1; i < nodes.size(); i++) {
-            sql.append(",(?,?)");
-        }
-
-        try {
-            PreparedStatement st = _con.prepareStatement(sql.toString());
-            for (int i = 0; i < nodes.size(); i++) {
-                Node n = nodes.get(i);
-                st.setInt(2*i + 1, Integer.parseInt(n.Id));
-                st.setString(2*i + 2, n.Label);
+            // Expand the input query depending on the number of nodes to be inserted
+            for (int i = 1; i < nodes.size(); i++) {
+                sql.append(",(?,?)");
             }
-            st.executeUpdate();
-        } catch (SQLException e) {
-            e.printStackTrace();
+
+            try {
+                PreparedStatement st = conn.prepareStatement(sql.toString());
+
+                // Replace the query variables by values
+                for (int i = 0; i < nodes.size(); i++) {
+                    Node n = nodes.get(i);
+                    st.setInt(2 * i + 1, Integer.parseInt(n.id));
+                    st.setString(2 * i + 2, n.label);
+                }
+
+                st.executeUpdate();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
     }
 
-    public static List<String> JoinNodeAndProperty(String relName, String key, String val) {
-        String sql = "SELECT n.id, n.label, p.pkey, p.pvalue FROM node n INNER JOIN property p ON n.id = p.id AND p.pvalue='"
-                .concat(val).concat("' AND p.pkey='").concat(key).concat("' AND n.label='").concat(relName)
-                .concat("';");
-        List<String> results = new ArrayList<>();
-
-        try {
-            Statement stmt = _con.createStatement();
-            ResultSet values = stmt.executeQuery(sql);
-            while (values.next()) {
-                results.add(values.getString(1));
-            }
-        } catch (SQLException e) {
-            System.out.println(sql);
-            e.printStackTrace();
-            return null;
-        } finally {
-            return results;
-        }
-
-    }
-
-    public static void Statistics() {
+    /**
+     * Calculates and prints some statistics about the generated output data
+     */
+    static void printStatistics() {
         String sql = "SELECT COUNT(*) as stats FROM node UNION SELECT COUNT(*) FROM property UNION SELECT COUNT(*) FROM edge;";
         List<String> results = new ArrayList<>();
 
         try {
-            Statement stmt = _con.createStatement();
+            Statement stmt = conn.createStatement();
             ResultSet values = stmt.executeQuery(sql);
             while (values.next()) {
                 results.add(values.getString(1));
@@ -197,15 +243,23 @@ public class OutputConnection {
         }
     }
 
-    public static ResultSet GetNodeData() {
+    /**
+     * @return Returns all generated nodes from the input database
+     */
+    static ResultSet retrieveNodeData() {
         String sql = "select * from node;";
 
         return getResultSet(sql);
     }
 
+    /**
+     * Executes an sql data retrieving query and returns the retrieved ResultSet
+     * @param sql query to retrieve data from the input database
+     * @return Resultset containing the data requested by the query `sql`
+     */
     private static ResultSet getResultSet(String sql) {
         try {
-            PreparedStatement stmt = _con.prepareStatement(sql, ResultSet.TYPE_FORWARD_ONLY,
+            PreparedStatement stmt = conn.prepareStatement(sql, ResultSet.TYPE_FORWARD_ONLY,
                     ResultSet.CONCUR_READ_ONLY);
             stmt.setFetchSize(500);
             ResultSet values = stmt.executeQuery();
@@ -216,24 +270,21 @@ public class OutputConnection {
             return null;
         }
     }
-
-    public static ResultSet GetPropertyData() {
+    /**
+     * @return Returns all generated properties from the input database
+     */
+    static ResultSet retrievePropertyData() {
         String sql = "select * from property;";
 
         return getResultSet(sql);
     }
 
-    public static ResultSet GetEdgeData() {
+    /**
+     * @return Returns all generated edges from the input database
+     */
+    static ResultSet getEdgeData() {
         String sql = "select * from edge;";
 
         return getResultSet(sql);
-    }
-
-    public void CreateGraphSQL() {
-        DropTablesIfExists();
-        CreateNodeTable();
-        CreateEdgeTable();
-        CreatePropertyTable();
-        System.out.println("Mapping - Created tables.");
     }
 }
