@@ -6,8 +6,8 @@ return node;
 USING PERIODIC COMMIT
 LOAD CSV WITH HEADERS FROM "file:///properties.csv" AS row
 MATCH (n {nodeid: row.propid})
-CALL apoc.create.setProperty(n, row.key, row.value) yield property
-return property;
+CALL apoc.create.setProperty(n, row.key, row.value) yield node
+return node;
 
 USING PERIODIC COMMIT
 LOAD CSV WITH HEADERS FROM "file:///edges.csv" AS row
