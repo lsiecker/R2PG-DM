@@ -51,7 +51,7 @@ public class App {
             System.out.println("csv files generated");
 
             // Clean up database connection
-            inputConn.conn.commit();
+            // inputConn.conn.commit(); // Do not commit changes (uncomment only for debugging purposes)
             inputConn.conn.close();
 
             Long end = System.currentTimeMillis();

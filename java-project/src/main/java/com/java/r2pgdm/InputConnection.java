@@ -6,8 +6,6 @@ import java.util.*;
 import com.java.r2pgdm.graph.Edge;
 import com.java.r2pgdm.graph.Node;
 import com.java.r2pgdm.graph.Property;
-import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.commons.lang3.tuple.Pair;
 
 /**
  * Contains functionality regarding the input database
@@ -109,14 +107,14 @@ public class InputConnection {
                     for (int i = 0; i < Fks.size() && !flag; i++) {
                         CompositeForeignKey currentFk = Fks.get(i);
                         if (keySeq > 1) {
-                            currentFk.AddForeignKey(tempFk);
+                            currentFk.addForeignKey(tempFk);
                             flag = true;
                         }
                     }
 
                     if (!flag) {
                         CompositeForeignKey cfk = new CompositeForeignKey();
-                        cfk.AddForeignKey(tempFk);
+                        cfk.addForeignKey(tempFk);
                         Fks.add(cfk);
                     }
                 }
@@ -154,11 +152,10 @@ public class InputConnection {
      * @param tableName name of table in the input database
      * @return Uniquely identified node object
      */
-    private Pair<String, Node> createNode(String tableName) {
+    private Node createNode(String tableName) {
         String currIdentifier = Identifier.id(Optional.empty(), Optional.empty())
                 .toString();
-        Node n = new Node(currIdentifier, tableName);
-        return new ImmutablePair<>(currIdentifier, n);
+        return new Node(currIdentifier, tableName);
     }
 
     /**
@@ -181,17 +178,14 @@ public class InputConnection {
         List<String> cols = getColumns(tableName);
         StringBuilder sqlSB = new StringBuilder("SELECT ");
 
-        cols.stream().forEach(c -> {
-            sqlSB.append(c).append(",");
-        });
+        cols.stream().forEach(c -> sqlSB.append(c).append(","));
 
         sqlSB.append(" ROW_NUMBER() OVER (ORDER BY (".concat(cols.get(0)).concat(")) AS rId FROM "));
         sqlSB.append(Character.toString(_Quoting).concat(tableName).concat(Character.toString(_Quoting)));
         sqlSB.append(" GROUP BY ");
 
-        cols.stream().forEach(c -> {
-            sqlSB.append(c).append(",");
-        });
+        cols.stream().forEach(c -> sqlSB.append(c).append(","));
+
         sqlSB.setLength(sqlSB.length() - 1);
         sqlSB.append(";");
 
@@ -210,21 +204,19 @@ public class InputConnection {
             ArrayList<Property> properties = new ArrayList<>();
 
             while (values.next()) {
-                Pair<String, Node> node = createNode(tableName);
+                Node node = createNode(tableName);
 
-                if (node.getRight() != null) {
-                    nodes.add(node.getRight());
-                    properties.addAll(createProperties(values, valuesMd, node.getLeft()));
+                nodes.add(node);
+                properties.addAll(createProperties(values, valuesMd, node.id));
 
-                    if (count >= batchSize && count % batchSize == 0) {
-                        OutputConnection.insertNodeRows(nodes);
-                        OutputConnection.insertPropertyRow(properties);
-                        nodes.clear();
-                        properties.clear();
-                        System.out.println("Created " + count + " nodes with properties for table " + tableName);
-                    }
-                    count++;
+                if (count >= batchSize && count % batchSize == 0) {
+                    OutputConnection.insertNodeRows(nodes);
+                    OutputConnection.insertPropertyRow(properties);
+                    nodes.clear();
+                    properties.clear();
+                    System.out.println("Created " + count + " nodes with properties for table " + tableName);
                 }
+                count++;
             }
 
             // Insert remaining nodes with properties

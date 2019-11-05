@@ -13,7 +13,7 @@ import lombok.Setter;
 public class Identifier {
     @Getter
     @Setter
-    private static AtomicInteger GlobalID = new AtomicInteger(1);
+    private static AtomicInteger GlobalID = new AtomicInteger(0);
 
     /**
      * Retrieves a new unique identifier
