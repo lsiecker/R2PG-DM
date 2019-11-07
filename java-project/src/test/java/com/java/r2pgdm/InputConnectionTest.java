@@ -21,7 +21,7 @@ import static org.junit.Assert.*;
 public class InputConnectionTest {
 
     InputConnection input;
-    String[] expectedTables = {"BaseTable", "ForeignTable", "ForeignTableSingle", "Separate", "Names", "Friend"};
+    static String[] expectedTables = {"BaseTable", "ForeignTable", "ForeignTableSingle", "Separate", "Names", "Friend"};
     Map<String, Pair<Integer, List<Integer>>> nrOfCFKs;
     Map<String, List<String>> columnNames;
 
@@ -33,7 +33,7 @@ public class InputConnectionTest {
         nrOfCFKs.put("ForeignTableSingle", new ImmutablePair<>(1, Arrays.asList(1)));
         nrOfCFKs.put("Separate", new ImmutablePair<>(0, Arrays.asList(0)));
         nrOfCFKs.put("Names", new ImmutablePair<>(0, Arrays.asList(0)));
-        nrOfCFKs.put("Friend", new ImmutablePair<>(2, Arrays.asList(2, 1)));
+        nrOfCFKs.put("Friend", new ImmutablePair<>(3, Arrays.asList(1, 1, 1)));
     }
 
     @Before

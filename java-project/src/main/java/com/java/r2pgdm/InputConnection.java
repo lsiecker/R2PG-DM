@@ -424,7 +424,7 @@ public class InputConnection {
 
             while (rs.next()) {
                 Integer id = Identifier.id(
-                        null, null);
+                        Optional.empty(), Optional.empty());
                 String sNodeId = rs.getString("sourceId");
                 String tNodeId = rs.getString("targetId");
 
