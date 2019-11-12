@@ -223,6 +223,7 @@ public class InputConnection {
             if (!nodes.isEmpty() || !properties.isEmpty()) {
                 OutputConnection.insertNodeRows(nodes);
                 OutputConnection.insertPropertyRow(properties);
+                System.out.println("Created " + count + " nodes with properties for table " + tableName);
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -442,6 +443,7 @@ public class InputConnection {
 
             if (!edges.isEmpty()) {
                 OutputConnection.insertEdgeRows(edges);
+                System.out.println("Added " + count + " Edges for table " + tableName);
             }
         } catch (SQLException e) {
             System.out.println(sql);

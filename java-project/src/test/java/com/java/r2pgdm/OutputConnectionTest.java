@@ -86,7 +86,6 @@ public class OutputConnectionTest {
         String[] tables = InputConnectionTest.expectedTables;
 
         for (String t : tables) {
-            System.out.println(t);
             input.createNodesAndProperties(t);
         }
 
