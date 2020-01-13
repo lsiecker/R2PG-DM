@@ -8,6 +8,7 @@ In order to use the application, a config.ini file is necessary for specifying t
 ```
 [input]
 connectionString=
+driver=sqlite
 ```
 
 Where the *connectionString* represents the jdbc connection string format as defined here: https://vladmihalcea.com/jdbc-driver-connection-url-strings/
