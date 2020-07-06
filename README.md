@@ -13,7 +13,7 @@ driver=sqlite
 
 Where the *connectionString* represents the jdbc connection string format as defined here: https://vladmihalcea.com/jdbc-driver-connection-url-strings/
 
-The application has been tested with sqlite.
+The application has been tested with sqlite and will likely need some implementation changes with respect to handling spaces in order to be used with other SQL database systems. Alternatively, you can use the forked repository instead (But it is very slow for anything but toy databases).
 
 ## Neo4j
 
