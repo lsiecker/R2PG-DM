@@ -26,7 +26,7 @@ public class IdentifierTest {
     @Test
     public void singleThreaded() {
         for (int i = 1; i < 1000; i++) {
-            assertEquals(new Integer(i), Identifier.id(Optional.empty(), Optional.empty()));
+            assertEquals(Integer.valueOf(i), Identifier.id(Optional.empty(), Optional.empty()));
         }
     }
 
