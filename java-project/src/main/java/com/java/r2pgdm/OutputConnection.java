@@ -239,7 +239,7 @@ public class OutputConnection {
         } finally {
             System.out.println("# Nodes: ".concat(results.get(0)));
             System.out.println("# Properties: ".concat(results.get(1)));
-            System.out.println("# Edges: ".concat(results.get(2)));
+            // System.out.println("# Edges: ".concat(results.get(2)));
         }
     }
 

@@ -15,10 +15,10 @@ class Export {
     /**
      * Exports generated graph data to csv files
      */
-    static void generateCSVs() {
-        generateCSV(OutputConnection.retrieveNodeData(), "nodes.csv", new String[] { "nodeid", "label" });
-        generateCSV(OutputConnection.retrievePropertyData(), "properties.csv", new String[] { "propid", "key", "value" });
-        generateCSV(OutputConnection.getEdgeData(), "edges.csv", new String[] { "edgeid", "srcid", "tgtid", "label" });
+    static void generateCSVs(String path) {
+        generateCSV(OutputConnection.retrieveNodeData(), path.concat("\\nodes.csv"), new String[] { "nodeid", "label" });
+        generateCSV(OutputConnection.retrievePropertyData(), path.concat("\\properties.csv"), new String[] { "propid", "key", "value" });
+        generateCSV(OutputConnection.getEdgeData(), path.concat("\\edges.csv"), new String[] { "edgeid", "srcid", "tgtid", "label" });
     }
 
     /**

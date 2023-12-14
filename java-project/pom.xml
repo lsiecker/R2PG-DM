@@ -78,13 +78,6 @@
       <version>3.28.0</version>
     </dependency>
     <dependency>
-      <groupId>com.oracle</groupId>
-      <artifactId>ojdbc</artifactId>
-      <version>8</version>
-      <scope>system</scope>
-      <systemPath>${project.basedir}/../lib/ojdbc8.jar</systemPath>
-    </dependency>
-    <dependency>
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-lang3</artifactId>
       <version>3.9</version>

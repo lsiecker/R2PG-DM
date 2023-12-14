@@ -47,7 +47,7 @@ public class App {
 
             OutputConnection.printStatistics();
 
-            Export.generateCSVs();
+            Export.generateCSVs("C:\\Users\\20182640\\OneDrive - TU Eindhoven\\01. TUe\\Master Thesis\\R2PG-DM-1\\exports\\graph");
             System.out.println("csv files generated");
 
             // Clean up database connection
