@@ -18,9 +18,10 @@ public class App {
     public static PreparedStatement _statementEdges;
 
     public static void main(String[] args) {
+
         try {
             Long start = System.currentTimeMillis();
-            Wini ini = new Wini(new File("config.ini"));
+            Wini ini = new Wini(new File("configs/mysql/world.ini"));
             Config input = GetConfiguration(ini.get("input"));
 
             InputConnection inputConn = new InputConnection(input.connectionString, input.database, input.driver);
@@ -47,7 +48,7 @@ public class App {
 
             OutputConnection.printStatistics();
 
-            Export.generateCSVs("C:\\Users\\20182640\\OneDrive - TU Eindhoven\\01. TUe\\Master Thesis\\R2PG-DM-1\\exports\\graph");
+            Export.generateCSVs("exports");
             System.out.println("csv files generated");
 
             // Clean up database connection
