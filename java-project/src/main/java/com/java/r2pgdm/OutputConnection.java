@@ -237,9 +237,17 @@ public class OutputConnection {
             System.out.println(sql);
             e.printStackTrace();
         } finally {
-            System.out.println("# Nodes: ".concat(results.get(0)));
-            System.out.println("# Properties: ".concat(results.get(1)));
-            // System.out.println("# Edges: ".concat(results.get(2)));
+            if (results.size() > 0) {
+                System.out.println("# Nodes: ".concat(results.get(0)));
+            } 
+            
+            if (results.size() > 1) {
+                System.out.println("# Properties: ".concat(results.get(1)));
+            }
+            
+            if (results.size() > 2) {
+                System.out.println("# Edges: ".concat(results.get(2)));
+            }
         }
     }
 
