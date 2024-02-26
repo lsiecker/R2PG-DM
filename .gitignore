@@ -32,3 +32,4 @@ hs_err_pid*
 edges.csv
 nodes.csv
 properties.csv
+java-project/.factorypath
