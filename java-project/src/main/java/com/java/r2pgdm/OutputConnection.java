@@ -151,6 +151,7 @@ public class OutputConnection {
                 }
 
                 statementEdges.executeUpdate();
+                statementEdges.close();
             } catch (SQLException e) {
                 e.printStackTrace();
             }
@@ -183,6 +184,7 @@ public class OutputConnection {
                 }
 
                 st.executeUpdate();
+                st.close();
             } catch (SQLException e) {
                 e.printStackTrace();
             }
@@ -214,6 +216,7 @@ public class OutputConnection {
                 }
 
                 st.executeUpdate();
+                st.close();
             } catch (SQLException e) {
                 e.printStackTrace();
             }
