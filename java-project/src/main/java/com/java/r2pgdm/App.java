@@ -21,7 +21,7 @@ public class App {
 
         try {
             Long start = System.currentTimeMillis();
-            Wini ini = new Wini(new File("configs/mysql/world.ini"));
+            Wini ini = new Wini(new File("configs/mysql/tpch.ini"));
             Config input = GetConfiguration(ini.get("input"));
 
             InputConnection inputConn = new InputConnection(input.connectionString, input.database, input.driver);
@@ -30,8 +30,7 @@ public class App {
             List<String> tables = inputConn.retrieveTableNames();
 
             // Transform tables in parallel
-            int tCount = Runtime.getRuntime().availableProcessors();
-            ExecutorService executorService = Executors.newFixedThreadPool(tCount);
+            ExecutorService executorService = Executors.newCachedThreadPool();
 
             ArrayList<Future<?>> tFinished = new ArrayList<>();
 
@@ -69,13 +68,13 @@ public class App {
      * @param threads Arraylist containing Futures (We don't care about the return type)
      */
     private static void awaitTableCompletion(ArrayList<Future<?>> threads) {
-        threads.forEach((future) ->{
+        for (Future<?> thread : threads) {
             try {
-                future.get();
+                thread.get();
             } catch (InterruptedException | ExecutionException e) {
                 e.printStackTrace();
             }
-        });
+        };
         threads.clear();
     }
 

@@ -169,6 +169,36 @@ public class InputConnection {
         return OutputConnection.createPropertyRow(values, valuesMd, nodeIdentifier);
     }
 
+    /**
+     * Creates all node an properties for one table in the input database
+     * @param tableName name of table in the input database
+     */
+    private int batchProcessNodes(ResultSet values, ResultSetMetaData valuesMd, String tabelName) throws SQLException {
+        int count = 0;  // Current number of un-inserted nodes with properties
+
+        ArrayList<Node> nodes = new ArrayList<>();
+        ArrayList<Property> properties = new ArrayList<>();
+
+        String tableName = tabelName;
+        while (values.next()) {
+            Node node = createNode(tableName);
+
+            nodes.add(node);
+            properties.addAll(createProperties(values, valuesMd, node.id));
+            count++;
+        }
+
+        // Insert remaining nodes with properties
+        if (!nodes.isEmpty() || !properties.isEmpty()) {
+            OutputConnection.insertNodeRows(nodes);
+            OutputConnection.insertPropertyRow(properties);
+        }
+        
+        nodes.clear();
+        properties.clear();
+
+        return count;
+    }
 
     /**
      * Creates all node an properties for one table in the input database
@@ -187,44 +217,42 @@ public class InputConnection {
         cols.stream().forEach(c -> sqlSB.append(c).append(","));
 
         sqlSB.setLength(sqlSB.length() - 1);
-        sqlSB.append(";");
+        sqlSB.append(" LIMIT ? OFFSET ?;");
 
         String sql = sqlSB.toString();
         try {
             PreparedStatement stmt = conn.prepareStatement(sql, ResultSet.TYPE_FORWARD_ONLY,
                     ResultSet.CONCUR_READ_ONLY);
-            stmt.setFetchSize(500);
-            ResultSet values = stmt.executeQuery();
-            ResultSetMetaData valuesMd = values.getMetaData();
 
-            int count = 0;  // Current number of un-inserted nodes with properties
-            int batchSize = 1000; // Number of nodes with properties should be inserted in the database simultaneously
+            int offset = 0;
+            boolean moreData = true;
+            int batchSize = 100000;
+            int totalNodes = 0;
 
-            ArrayList<Node> nodes = new ArrayList<>();
-            ArrayList<Property> properties = new ArrayList<>();
+            while (moreData) {
+                System.out.println("Start new while loop " + tableName);
+                // Set parameters for pagination
+                stmt.setInt(1, batchSize);
+                stmt.setInt(2, offset);
 
-            while (values.next()) {
-                Node node = createNode(tableName);
+                ResultSet values = stmt.executeQuery();
+                ResultSetMetaData valuesMd = values.getMetaData();
+                int rowCount = batchProcessNodes(values, valuesMd, tableName);
+                values.close();
 
-                nodes.add(node);
-                properties.addAll(createProperties(values, valuesMd, node.id));
-
-                if (count >= batchSize && count % batchSize == 0) {
-                    OutputConnection.insertNodeRows(nodes);
-                    OutputConnection.insertPropertyRow(properties);
-                    nodes.clear();
-                    properties.clear();
-                    System.out.println("Created " + count + " nodes with properties for table " + tableName);
+                if (rowCount < batchSize) {
+                    moreData = false;
                 }
-                count++;
-            }
+                offset += batchSize;
+                totalNodes += rowCount;            
+                
+                System.out.println("Mapped " + totalNodes + " for table: " + tableName);
 
-            // Insert remaining nodes with properties
-            if (!nodes.isEmpty() || !properties.isEmpty()) {
-                OutputConnection.insertNodeRows(nodes);
-                OutputConnection.insertPropertyRow(properties);
-                System.out.println("Created " + count + " nodes with properties for table " + tableName);
             }
+            
+            stmt.close();
+            System.out.println(tableName + " is fully mapped!");
+            
         } catch (SQLException e) {
             e.printStackTrace();
             System.out.println(sql);
@@ -445,6 +473,9 @@ public class InputConnection {
                 OutputConnection.insertEdgeRows(edges);
                 System.out.println("Added " + count + " Edges for table " + tableName);
             }
+
+            edges.clear();
+            rs.close();
         } catch (SQLException e) {
             System.out.println(sql);
             e.printStackTrace();
