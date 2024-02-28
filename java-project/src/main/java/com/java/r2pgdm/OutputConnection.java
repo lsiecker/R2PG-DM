@@ -14,13 +14,19 @@ import com.java.r2pgdm.graph.Property;
 public class OutputConnection {
 
     private static Connection conn;
+    private static ConnectionPool connectionPool;
 
     /**
      * Since output is written to the input connection we reuse the input connection
      * @param input Connection to the input database
      */
     public OutputConnection(InputConnection input) {
-        conn = input.conn;
+        try {
+            conn = input.connectionPool.getConnection();
+            connectionPool = input.connectionPool;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
         createGraphSQL();
     }
 
@@ -139,7 +145,8 @@ public class OutputConnection {
             }
 
             try {
-                PreparedStatement statementEdges = OutputConnection.conn.prepareStatement(sql.toString());
+                Connection conn = connectionPool.getConnection();
+                PreparedStatement statementEdges = conn.prepareStatement(sql.toString());
 
                 // Replace the query variables by values
                 for (int i = 0; i < edges.size(); i++) {
@@ -152,6 +159,7 @@ public class OutputConnection {
 
                 statementEdges.executeUpdate();
                 statementEdges.close();
+                connectionPool.free(conn);
             } catch (SQLException e) {
                 e.printStackTrace();
             }
@@ -173,6 +181,7 @@ public class OutputConnection {
             }
 
             try {
+                Connection conn = connectionPool.getConnection();
                 PreparedStatement st = conn.prepareStatement(sql.toString());
 
                 // Replace the query variables by values
@@ -185,6 +194,7 @@ public class OutputConnection {
 
                 st.executeUpdate();
                 st.close();
+                connectionPool.free(conn);
             } catch (SQLException e) {
                 e.printStackTrace();
             }
@@ -206,6 +216,7 @@ public class OutputConnection {
             }
 
             try {
+                Connection conn = connectionPool.getConnection();
                 PreparedStatement st = conn.prepareStatement(sql.toString());
 
                 // Replace the query variables by values
@@ -217,6 +228,7 @@ public class OutputConnection {
 
                 st.executeUpdate();
                 st.close();
+                connectionPool.free(conn);
             } catch (SQLException e) {
                 e.printStackTrace();
             }

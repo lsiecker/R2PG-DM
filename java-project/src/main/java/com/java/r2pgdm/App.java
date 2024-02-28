@@ -16,6 +16,7 @@ import org.ini4j.Profile.Section;
 
 public class App {
     public static PreparedStatement _statementEdges;
+    public static InputConnection inputConn;
 
     public static void main(String[] args) {
 
@@ -24,7 +25,7 @@ public class App {
             Wini ini = new Wini(new File("configs/mysql/tpch.ini"));
             Config input = GetConfiguration(ini.get("input"));
 
-            InputConnection inputConn = new InputConnection(input.connectionString, input.database, input.driver);
+            inputConn = new InputConnection(input.connectionString, input.database, input.driver);
             new OutputConnection(inputConn);
 
             List<String> tables = inputConn.retrieveTableNames();
@@ -35,7 +36,13 @@ public class App {
             ArrayList<Future<?>> tFinished = new ArrayList<>();
 
             // Create node + props
-            tables.forEach(t -> tFinished.add(executorService.submit(() -> inputConn.createNodesAndProperties(t))));
+            tables.forEach(t -> tFinished.add(executorService.submit(() -> {
+                try {
+                    inputConn.createNodesAndProperties(t);
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            })));
             awaitTableCompletion(tFinished); // Wait for nodes and properties to finish creating
             System.out.println("Nodes with properties created");
 
@@ -52,14 +59,16 @@ public class App {
 
             // Clean up database connection
             // inputConn.conn.commit(); // Do not commit changes (uncomment only for debugging purposes)
-            inputConn.conn.close();
+            inputConn.connectionPool.closeAllConnections();
 
             Long end = System.currentTimeMillis();
 
             System.out.println("Finished in " + (end-start)/60000d + " minutes.");
 
-        } catch (IOException | SQLException e) {
+        } catch (IOException e) {
             e.printStackTrace();
+        } finally {
+            inputConn.connectionPool.closeAllConnections();
         }
     }
 
