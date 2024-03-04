@@ -33,7 +33,7 @@ public class IdentifierTest {
     @Test
     public void multiThreaded() {
         int tCount = Runtime.getRuntime().availableProcessors();
-        ExecutorService executorService = Executors.newFixedThreadPool(tCount);
+        ExecutorService executorService = Executors.newCachedThreadPool();
         ArrayList<Future<ArrayList<Integer>>> threads = new ArrayList<>();
         ArrayList<Integer> identifiers =  new ArrayList<>();
 

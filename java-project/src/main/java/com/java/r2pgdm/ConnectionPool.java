@@ -115,6 +115,10 @@ public class ConnectionPool implements Runnable {
         }
     }
 
+    public void setWaitIfBusy(Boolean bool) {
+        waitIfBusy = bool;
+    }
+
     public void run() {
         try {
             Connection connection = makeNewConnection();

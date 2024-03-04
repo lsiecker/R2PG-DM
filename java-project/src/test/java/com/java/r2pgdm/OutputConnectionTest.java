@@ -6,6 +6,7 @@ import org.junit.Test;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -17,6 +18,7 @@ public class OutputConnectionTest {
 
     private InputConnection input;
     private OutputConnection output;
+    private Connection conn;
 
     @Before
     public void connect() {
@@ -25,24 +27,25 @@ public class OutputConnectionTest {
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
         }
-        input =  new InputConnection("jdbc:sqlite:junit.db", "", "");
+        input =  new InputConnection("jdbc:mysql://localhost:3306/world?user=root&password=password", "world", "mysql");
         output = new OutputConnection(input);
-    }
-
-    @After
-    public void cleanup() {
         try {
-            input.conn.close();
+            conn = input.connectionPool.getConnection();
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
 
+    @After
+    public void cleanup() {
+        input.connectionPool.closeAllConnections();
+    }
+
     private List<String> getTableNames() {
         ArrayList<String> tables = new ArrayList<>();
         try {
-            Statement stmt = input.conn.createStatement();
-            ResultSet rs = stmt.executeQuery("SELECT name FROM sqlite_master WHERE type= 'table' AND name NOT LIKE 'sqlite_%' ");
+            Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery("SHOW TABLES");
 
 
             while (rs.next()) {
@@ -93,7 +96,7 @@ public class OutputConnectionTest {
             OutputConnection.createEdges(input, t);
         }
 
-        Statement stmt = input.conn.createStatement();
+        Statement stmt = conn.createStatement();
         ResultSet rs = stmt.executeQuery("select * from edge");
 
         HashMap<String, Integer> counts = new HashMap<>();
@@ -107,20 +110,14 @@ public class OutputConnectionTest {
 
         Set<String> labels = counts.keySet();
 
-        assertEquals(4, labels.size());
+        assertEquals(2, labels.size());
         labels.forEach((label) -> {
             switch(label) {
-                case "ForeignTable-BaseTable":
-                    assertEquals(Integer.valueOf(3), counts.get(label));
+                case "countrylanguage-country":
+                    assertEquals(Integer.valueOf(984), counts.get(label));
                     break;
-                case "ForeignTableSingle-ForeignTable":
-                    assertEquals(Integer.valueOf(2), counts.get(label));
-                    break;
-                case "Friend-ForeignTable":
-                    assertEquals(Integer.valueOf(5), counts.get(label));
-                    break;
-                case "Friend-Names":
-                    assertEquals(Integer.valueOf(10), counts.get(label));
+                case "city-country":
+                    assertEquals(Integer.valueOf(4079), counts.get(label));
                     break;
                 default:
                     fail();

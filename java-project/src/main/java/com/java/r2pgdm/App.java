@@ -22,7 +22,7 @@ public class App {
 
         try {
             Long start = System.currentTimeMillis();
-            Wini ini = new Wini(new File("configs/mysql/tpch.ini"));
+            Wini ini = new Wini(new File("configs/mysql/world.ini"));
             Config input = GetConfiguration(ini.get("input"));
 
             inputConn = new InputConnection(input.connectionString, input.database, input.driver);
