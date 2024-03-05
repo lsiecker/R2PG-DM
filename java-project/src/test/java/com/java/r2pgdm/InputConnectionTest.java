@@ -1,6 +1,9 @@
 package com.java.r2pgdm;
 
 import com.java.r2pgdm.graph.Node;
+import com.mysql.cj.x.protobuf.MysqlxDatatypes.Array;
+
+import org.apache.commons.lang3.ObjectUtils.Null;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.After;
@@ -10,6 +13,7 @@ import org.junit.Test;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -21,55 +25,49 @@ import static org.junit.Assert.*;
 public class InputConnectionTest {
 
     InputConnection input;
-    static String[] expectedTables = {"BaseTable", "ForeignTable", "ForeignTableSingle", "Separate", "Names", "Friend"};
+    Connection conn;
+    static String[] expectedTables = {"city", "country", "countrylanguage"};
     Map<String, Pair<Integer, List<Integer>>> nrOfCFKs;
     Map<String, List<String>> columnNames;
 
     @Before
     public void nrOfCFKs() {
         nrOfCFKs = new HashMap<>();
-        nrOfCFKs.put("BaseTable", new ImmutablePair<>(0, Arrays.asList(0) ));
-        nrOfCFKs.put("ForeignTable", new ImmutablePair<>(1, Arrays.asList(2)));
-        nrOfCFKs.put("ForeignTableSingle", new ImmutablePair<>(1, Arrays.asList(1)));
-        nrOfCFKs.put("Separate", new ImmutablePair<>(0, Arrays.asList(0)));
-        nrOfCFKs.put("Names", new ImmutablePair<>(0, Arrays.asList(0)));
-        nrOfCFKs.put("Friend", new ImmutablePair<>(3, Arrays.asList(1, 1, 1)));
+        // Update based on foreign key relationships in the world dataset
+        nrOfCFKs.put("country", new ImmutablePair<>(0, Arrays.asList(0))); // Country has 0 foreign keys
+        nrOfCFKs.put("city", new ImmutablePair<>(1, Arrays.asList(1)));    // City table has 0 foreign keys
+        nrOfCFKs.put("countrylanguage", new ImmutablePair<>(1, Arrays.asList(1)));
     }
-
+    
     @Before
     public void setFieldNames() {
         columnNames = new HashMap<>();
-        columnNames.put("BaseTable", Arrays.asList("id", "name", "extra"));
-        columnNames.put("ForeignTable", Arrays.asList("id", "fid", "fname"));
-        columnNames.put("ForeignTableSingle", Arrays.asList("id", "fid"));
-        columnNames.put("Separate", Arrays.asList("id", "extra"));
-        columnNames.put("Names", Arrays.asList("id", "name"));
-        columnNames.put("Friend", Arrays.asList("name", "friend", "fid"));
+        // Update based on column names in the world dataset
+        columnNames.put("country", Arrays.asList("Capital", "Code", "Code2", "Continent", "GNP", "GNPOld", "GovernmentForm", "HeadOfState", "IndepYear", "LifeExpectancy", "LocalName", "Name", "Population", "Region", "SurfaceArea")); // Example: Country table columns
+        columnNames.put("city", Arrays.asList("CountryCode", "District", "ID", "Name", "Population"));
+        columnNames.put("countrylanguage", Arrays.asList("CountryCode", "IsOfficial", "Language", "Percentage"));
     }
 
     @Before
     public void connect() {
+        input =  new InputConnection("jdbc:mysql://localhost:3306/world?user=root&password=password", "world", "mysql");
         try {
-            Class.forName("org.sqlite.JDBC");
-        } catch (ClassNotFoundException e) {
+            conn = input.connectionPool.getConnection();
+        } catch (SQLException e) {
             e.printStackTrace();
         }
-        input =  new InputConnection("jdbc:sqlite:junit.db", "", "");
         new OutputConnection(input);
     }
 
     @After
     public void cleanup() {
-        try {
-            input.conn.close();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+        input.connectionPool.closeAllConnections();
     }
 
     @Test
     public void connectionTest() {
         assertNotNull(input);
+        assertEquals(0, input.connectionPool.availableConnections.size());
     }
 
     @Test
@@ -146,7 +144,7 @@ public class InputConnectionTest {
         int tablesProcessed = 1;
 
         for (String t : expectedTables) {
-            Statement stmt = input.conn.createStatement();
+            Statement stmt = conn.createStatement();
             ResultSet rowCountRS = stmt.executeQuery("select count(*) from " + t);
             rowCountRS.next();
 

@@ -16,9 +16,12 @@ public class InputConnection {
     private char _Quoting = '`';
     private static final String[] TYPES = new String[]{"TABLE"};
     private DatabaseMetaData _metaData;
-    private String _schema;
+    private String _schema, driver;
 
-    Connection conn;
+    // Connection conn;
+    ConnectionPool connectionPool;
+
+    Map<String, Object> progressMap = new HashMap<>();
 
     /**
      * Establishes a database connected to the input database
@@ -28,11 +31,16 @@ public class InputConnection {
      */
     public InputConnection(String connectionString, String schema, String driver) {
         this._schema = schema;
+        this.driver = driver;
         if (!driver.equals("mysql")) {
             this._Quoting = '"';
         }
         connect(connectionString);
-        retrieveMetaData();
+        try {
+            retrieveMetaData();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
     /**
@@ -41,8 +49,9 @@ public class InputConnection {
      */
     private void connect(String connectionString) {
         try {
-            conn = DriverManager.getConnection(connectionString);
-            conn.setAutoCommit(false);
+            connectionPool = new ConnectionPool(driver, connectionString, 0, 6, true);
+            // conn = connectionPool.getConnection();
+            // conn.setAutoCommit(false);
             System.out.println("Connection for input established.");
         } catch (SQLException e) {
             e.printStackTrace();
@@ -52,11 +61,14 @@ public class InputConnection {
     /**
      * Retrieves the database's metadata
      */
-    private void retrieveMetaData() {
+    private void retrieveMetaData() throws SQLException {
+        Connection conn = connectionPool.getConnection();
         try {
             _metaData = conn.getMetaData();
         } catch (SQLException e) {
             e.printStackTrace();
+        } finally {
+            connectionPool.free(conn);
         }
     }
 
@@ -204,7 +216,7 @@ public class InputConnection {
      * Creates all node an properties for one table in the input database
      * @param tableName name of table in the input database
      */
-    void createNodesAndProperties(String tableName) {
+    void createNodesAndProperties(String tableName) throws SQLException {
         List<String> cols = getColumns(tableName);
         StringBuilder sqlSB = new StringBuilder("SELECT ");
 
@@ -220,6 +232,7 @@ public class InputConnection {
         sqlSB.append(" LIMIT ? OFFSET ?;");
 
         String sql = sqlSB.toString();
+        Connection conn = connectionPool.getConnection();
         try {
             PreparedStatement stmt = conn.prepareStatement(sql, ResultSet.TYPE_FORWARD_ONLY,
                     ResultSet.CONCUR_READ_ONLY);
@@ -230,7 +243,7 @@ public class InputConnection {
             int totalNodes = 0;
 
             while (moreData) {
-                System.out.println("Start new while loop " + tableName);
+                // System.out.println("Start new while loop " + tableName);
                 // Set parameters for pagination
                 stmt.setInt(1, batchSize);
                 stmt.setInt(2, offset);
@@ -246,17 +259,38 @@ public class InputConnection {
                 offset += batchSize;
                 totalNodes += rowCount;            
                 
-                System.out.println("Mapped " + totalNodes + " for table: " + tableName);
-
+                // System.out.println("Mapped " + totalNodes + " for table: " + tableName);
+                progressMap.put(tableName, totalNodes);
+                reportProgress();
             }
             
             stmt.close();
-            System.out.println(tableName + " is fully mapped!");
+            connectionPool.free(conn);
+            // System.out.println(tableName + " is fully mapped!");
+            progressMap.put(tableName, "Done");
+            reportProgress();
             
         } catch (SQLException e) {
             e.printStackTrace();
             System.out.println(sql);
+        } finally {
+            connectionPool.free(conn);
         }
+    }
+
+    private synchronized void reportProgress() {
+        // Print progress for each table
+        for (String tableName : progressMap.keySet()) {
+            Object progressObj = progressMap.get(tableName);
+            if (progressObj instanceof Integer) {
+                int progress = (int) progressObj;
+                System.out.println(tableName + ": " + progress + " nodes");
+            } else if (progressObj instanceof String) {
+                String progressStr = (String) progressObj;
+                System.out.println(tableName + ": " + progressStr);
+            }
+        }
+        System.out.println(); // Add a newline after printing progress for all tables
     }
 
     /**
@@ -444,6 +478,7 @@ public class InputConnection {
                 .concat(finalEdgeJoinString(cfk));
 
         try {
+            Connection conn = connectionPool.getConnection();
             ResultSet rs = conn.createStatement().executeQuery(sql);
 
             ArrayList<Edge> edges = new ArrayList<>();
@@ -476,6 +511,7 @@ public class InputConnection {
 
             edges.clear();
             rs.close();
+            connectionPool.free(conn);
         } catch (SQLException e) {
             System.out.println(sql);
             e.printStackTrace();
