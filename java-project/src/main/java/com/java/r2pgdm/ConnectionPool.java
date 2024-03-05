@@ -96,10 +96,12 @@ public class ConnectionPool implements Runnable {
     }
 
     public synchronized void closeAllConnections() {
+        System.out.print("Closing all connections to the server... \r");
         closeConnections(availableConnections);
         availableConnections = new Vector<Connection>();
         closeConnections(busyConnections);
         busyConnections = new Vector<Connection>();
+        System.out.print("Closed all connections to the server.   ");
     }
 
     private void closeConnections(Vector<Connection> connections) {
