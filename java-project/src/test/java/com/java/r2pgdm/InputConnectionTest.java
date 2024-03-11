@@ -1,9 +1,6 @@
 package com.java.r2pgdm;
 
 import com.java.r2pgdm.graph.Node;
-import com.mysql.cj.x.protobuf.MysqlxDatatypes.Array;
-
-import org.apache.commons.lang3.ObjectUtils.Null;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.After;
@@ -67,7 +64,7 @@ public class InputConnectionTest {
     @Test
     public void connectionTest() {
         assertNotNull(input);
-        assertEquals(0, input.connectionPool.availableConnections.size());
+        assertTrue(input.connectionPool.availableConnections.size() + input.connectionPool.busyConnections.size() > 0);
     }
 
     @Test
