@@ -26,8 +26,15 @@ public class OutputConnection {
             connectionPool = input.connectionPool;
         } catch (SQLException e) {
             e.printStackTrace();
+        } finally {
+            try {
+                createGraphSQL();
+            } catch (Error e) {
+                e.printStackTrace();
+            } finally {
+                connectionPool.free(conn);
+            }
         }
-        createGraphSQL();
     }
 
     /**
@@ -146,7 +153,8 @@ public class OutputConnection {
 
             try {
                 Connection conn = connectionPool.getConnection();
-                PreparedStatement statementEdges = conn.prepareStatement(sql.toString());
+                PreparedStatement statementEdges = conn.prepareStatement(sql.toString(), ResultSet.TYPE_FORWARD_ONLY,
+                ResultSet.CONCUR_READ_ONLY);
 
                 // Replace the query variables by values
                 for (int i = 0; i < edges.size(); i++) {
@@ -156,12 +164,12 @@ public class OutputConnection {
                     statementEdges.setInt(4 * i + 3, Integer.parseInt(edge.targetId));
                     statementEdges.setString(4 * i + 4, edge.label);
                 }
-
                 statementEdges.executeUpdate();
                 statementEdges.close();
-                connectionPool.free(conn);
             } catch (SQLException e) {
                 e.printStackTrace();
+            } finally{
+                connectionPool.free(conn);
             }
         }
     }

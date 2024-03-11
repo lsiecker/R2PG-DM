@@ -64,7 +64,7 @@ public class App {
 
             // Clean up database connection
             // inputConn.conn.commit(); // Do not commit changes (uncomment only for debugging purposes)
-            inputConn.connectionPool.closeAllConnections();
+            // inputConn.connectionPool.closeAllConnections();
 
             Long end = System.currentTimeMillis();
 

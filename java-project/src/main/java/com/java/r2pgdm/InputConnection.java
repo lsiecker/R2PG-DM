@@ -265,7 +265,7 @@ public class InputConnection {
             }
             
             stmt.close();
-            connectionPool.free(conn);
+            // connectionPool.free(conn);
             // System.out.println(tableName + " is fully mapped!");
             progressMap.put(tableName, "Done");
             reportProgress();
@@ -280,17 +280,23 @@ public class InputConnection {
 
     private synchronized void reportProgress() {
         // Print progress for each table
-        for (String tableName : progressMap.keySet()) {
-            Object progressObj = progressMap.get(tableName);
-            if (progressObj instanceof Integer) {
-                int progress = (int) progressObj;
-                System.out.println(tableName + ": " + progress + " nodes");
-            } else if (progressObj instanceof String) {
-                String progressStr = (String) progressObj;
-                System.out.println(tableName + ": " + progressStr);
+        try {
+            for (String tableName : progressMap.keySet()) {
+                Object progressObj = progressMap.get(tableName);
+                if (progressObj instanceof Integer) {
+                    int progress = (int) progressObj;
+                    System.out.println(tableName + ": " + progress + " nodes");
+                } else if (progressObj instanceof String) {
+                    String progressStr = (String) progressObj;
+                    System.out.println(tableName + ": " + progressStr);
+                }
             }
+            System.out.println(); // Add a newline after printing progress for all tables
+        } catch (Exception e) {
+            // If the reportProgress is called twice at the same time, it is not really a problem
+            // Catch this occasion and continue. This only happens when datasets are really small.
         }
-        System.out.println(); // Add a newline after printing progress for all tables
+
     }
 
     /**
