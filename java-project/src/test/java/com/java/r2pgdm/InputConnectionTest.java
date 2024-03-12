@@ -88,6 +88,7 @@ public class InputConnectionTest {
         assertNotNull(field.get(input));
     }
 
+    @SuppressWarnings("unlikely-arg-type")
     @Test
     public void retrieveCompositeForeignKeys() {
         for (String t : expectedTables) {
@@ -114,6 +115,7 @@ public class InputConnectionTest {
 
         for (String t : expectedTables) {
             List<String> expectedColumns = columnNames.get(t);
+            @SuppressWarnings("unchecked")
             List<String> actualColumns = (List<String>) method.invoke(input, t);
             assertEquals(expectedColumns.size(), actualColumns.size());
         }

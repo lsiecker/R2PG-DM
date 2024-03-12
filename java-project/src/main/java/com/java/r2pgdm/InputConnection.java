@@ -24,10 +24,11 @@ public class InputConnection {
     Map<String, Object> progressMap = new HashMap<>();
 
     /**
-     * Establishes a database connected to the input database
-     * @param connectionString JDBC connection string
-     * @param schema name of database schema
-     * @param driver name of JDBC driver
+     * Establishes a database connected to the input database.
+     * 
+     * @param connectionString  JDBC connection string
+     * @param schema            name of database schema
+     * @param driver            name of JDBC driver
      */
     public InputConnection(String connectionString, String schema, String driver) {
         this._schema = schema;
@@ -44,7 +45,8 @@ public class InputConnection {
     }
 
     /**
-     * Attempts to connect to the input database using the given connection string
+     * Attempts to connect to the input database using the given connection string.
+     * 
      * @param connectionString JDBC connection string
      */
     private void connect(String connectionString) {
@@ -60,6 +62,8 @@ public class InputConnection {
 
     /**
      * Retrieves the database's metadata
+     * 
+     * @throws SQLException if a database access error occurs
      */
     private void retrieveMetaData() throws SQLException {
         Connection conn = connectionPool.getConnection();
@@ -73,7 +77,8 @@ public class InputConnection {
     }
 
     /**
-     * Retrieves the table names of the table in the input database
+     * Retrieves the table names of the table in the input database.
+     * 
      * @return List of table names
      */
     List<String> retrieveTableNames() {
@@ -97,8 +102,9 @@ public class InputConnection {
 
     /**
      * Calculates all composite foreign keys in the input database for the given table
-     * @param tableName name of source table
-     * @return list of composite foreign keys
+     * 
+     * @param tableName     Name of source table
+     * @return              List of composite foreign keys
      */
     List<CompositeForeignKey> retrieveCompositeForeignKeys(String tableName) {
         List<CompositeForeignKey> Fks = new ArrayList<>();
@@ -139,9 +145,10 @@ public class InputConnection {
     }
 
     /**
-     * Finds the names of the columns of the given table
-     * @param tableName name of a table in the input connection
-     * @return List of column names
+     * Finds the names of the columns of the given table.
+     * 
+     * @param tableName     Name of a table in the input connection
+     * @return              List of column names
      */
     private List<String> getColumns(String tableName) {
         List<String> list = new ArrayList<>();
@@ -160,9 +167,10 @@ public class InputConnection {
     }
 
     /**
-     * Creates a node object for the given table name
-     * @param tableName name of table in the input database
-     * @return Uniquely identified node object
+     * Creates a node object for the given table name.
+     * 
+     * @param tableName     Name of table in the input database
+     * @return              Uniquely identified node object
      */
     private Node createNode(String tableName) {
         String currIdentifier = Identifier.id(Optional.empty(), Optional.empty())
@@ -171,19 +179,21 @@ public class InputConnection {
     }
 
     /**
-     * Creates properties from one row from a table in the input database
-     * @param values points to current row in table processing
-     * @param valuesMd Metadata describing `values`
-     * @param nodeIdentifier identifier of the node to which these properties belong
-     * @return ArrayList of properties
+     * Creates properties from one row from a table in the input database.
+     * 
+     * @param values            Points to current row in table processing
+     * @param valuesMd          Metadata describing `values`
+     * @param nodeIdentifier    Identifier of the node to which these properties belong
+     * @return                  ArrayList of properties
      */
     private ArrayList<Property> createProperties(ResultSet values, ResultSetMetaData valuesMd, String nodeIdentifier) {
         return OutputConnection.createPropertyRow(values, valuesMd, nodeIdentifier);
     }
 
     /**
-     * Creates all node an properties for one table in the input database
-     * @param tableName name of table in the input database
+     * Creates all node an properties for one table in the input database.
+     * 
+     * @param tableName         Name of table in the input database
      */
     private int batchProcessNodes(ResultSet values, ResultSetMetaData valuesMd, String tabelName) throws SQLException {
         int count = 0;  // Current number of un-inserted nodes with properties
@@ -213,8 +223,9 @@ public class InputConnection {
     }
 
     /**
-     * Creates all node an properties for one table in the input database
-     * @param tableName name of table in the input database
+     * Creates all node an properties for one table in the input database.
+     * 
+     * @param tableName     Name of table in the input database
      */
     void createNodesAndProperties(String tableName) throws SQLException {
         List<String> cols = getColumns(tableName);
@@ -243,30 +254,33 @@ public class InputConnection {
             int totalNodes = 0;
 
             while (moreData) {
-                // System.out.println("Start new while loop " + tableName);
                 // Set parameters for pagination
                 stmt.setInt(1, batchSize);
                 stmt.setInt(2, offset);
 
+                // Retrieve the data
                 ResultSet values = stmt.executeQuery();
                 ResultSetMetaData valuesMd = values.getMetaData();
+
+                // Process the Nodes and Properties in the current batch
                 int rowCount = batchProcessNodes(values, valuesMd, tableName);
                 values.close();
 
+                // Check if there is another batch available
                 if (rowCount < batchSize) {
                     moreData = false;
                 }
+
+                // Update the parameters for pagination
                 offset += batchSize;
                 totalNodes += rowCount;            
                 
-                // System.out.println("Mapped " + totalNodes + " for table: " + tableName);
+                // Report the progress in the console
                 progressMap.put(tableName, totalNodes);
                 reportProgress();
             }
             
             stmt.close();
-            // connectionPool.free(conn);
-            // System.out.println(tableName + " is fully mapped!");
             progressMap.put(tableName, "Done");
             reportProgress();
             
@@ -274,10 +288,25 @@ public class InputConnection {
             e.printStackTrace();
             System.out.println(sql);
         } finally {
+            // Make the connection available again in the connection pool
             connectionPool.free(conn);
         }
     }
 
+    /**
+     * Prints progress for each table in the progress map.
+     * <p>
+     * This method iterates over the keys of the progress map, printing progress information for each table.
+     * It checks the type of progress stored in the map and prints accordingly.
+     * </p>
+     * <p>
+     * Progress can be either an integer representing the number of nodes processed for a table, or a string
+     * indicating completion status.
+     * </p>
+     * <p>
+     * If the method is called twice simultaneously, it handles the situation gracefully without interrupting the process.
+     * </p>
+     */
     private synchronized void reportProgress() {
         // Print progress for each table
         try {
@@ -300,9 +329,10 @@ public class InputConnection {
     }
 
     /**
-     * Query to find all tuples of values in the composite foreign key columns that exist in both source and target table
-     * @param cfk Describes the relevant columns
-     * @return partial query
+     * Query to find all tuples of values in the composite foreign key columns that exist in both source and target table.
+     * 
+     * @param cfk   Describes the relevant columns
+     * @return      Partial query
      */
     private String joinableColumnsQuery(CompositeForeignKey cfk) {
         String sqlSel = "WITH joinableColumns as (SELECT DISTINCT ";
@@ -327,12 +357,11 @@ public class InputConnection {
     }
 
     /**
-     * Finds all source nodes with the properties described by `cfk`
-     *
+     * Finds all source nodes with the properties described by `cfk`.
      * the returned table has three columns : id, pkey, pvalue (node id, name of key, value of key attribute)
      *
-     * @param cfk Describes the relevant columns
-     * @return partial query
+     * @param cfk   Describes the relevant columns
+     * @return      Partial query
      */
     private String sourceNodeQuery(CompositeForeignKey cfk) {
         String sql = "sourceNodes as (SELECT n.id, p.pkey, p.pvalue FROM node n INNER JOIN property p on " +
@@ -353,8 +382,8 @@ public class InputConnection {
      * Finds all target nodes with the properties described by `cfk`
      * the returned table has three columns : id, pkey, pvalue (node id, name of key, value of key attribute)
      *
-     * @param cfk Describes the relevant columns
-     * @return partial query
+     * @param cfk   Describes the relevant columns
+     * @return      Partial query
      */
     private String targetNodeQuery(CompositeForeignKey cfk) {
         String sql = "targetNodes as (SELECT n.id, p.pkey, p.pvalue FROM node n INNER JOIN property p on " +
@@ -374,8 +403,8 @@ public class InputConnection {
     /**
      * Pivots the source nodes such that each unique value of pkey becomes a column with pvalue as its value
      *
-     * @param cfk Describes the relevant columns
-     * @return partial query
+     * @param cfk   Describes the relevant columns
+     * @return      Partial query
      */
     private String pivotedSourceNodeQuery(CompositeForeignKey cfk) {
         String sql = "pivotedSourceNodes as (SELECT id as sourceId";
@@ -393,8 +422,8 @@ public class InputConnection {
     /**
      * Pivots the target nodes such that each unique value of pkey becomes a column with pvalue as its value
      *
-     * @param cfk Describes the relevant columns
-     * @return partial query
+     * @param cfk   Describes the relevant columns
+     * @return      Partial query
      */
     private String pivotedTargetNodeQuery(CompositeForeignKey cfk) {
         String sql = "pivotedTargetNodes as (SELECT id as targetId";
@@ -412,8 +441,8 @@ public class InputConnection {
     /**
      * inner joins the pivoted source table with the joinable columns such that only joinable rows remain
      *
-     * @param cfk Describes the relevant columns
-     * @return partial query
+     * @param cfk   Describes the relevant columns
+     * @return      Partial query
      */
     private String joinedSourceNodesQuery(CompositeForeignKey cfk) {
         String sql = "joinedSourceNodes as ( SELECT s.sourceId";
@@ -441,8 +470,8 @@ public class InputConnection {
      * Joins the joined source nodes with the target nodes, such that we have a list of source, target id pairs between
      * wich edges need to be created
      *
-     * @param cfk Describes the relevant columns
-     * @return partial query
+     * @param cfk   Describes the relevant columns
+     * @return      Partial query
      */
     private String finalEdgeJoinString(CompositeForeignKey cfk) {
         String sql = "SELECT s.sourceId, t.targetId FROM joinedSourceNodes s LEFT JOIN pivotedTargetNodes t ON ";
@@ -464,8 +493,8 @@ public class InputConnection {
     /**
      * inserts all edges described by `cfk` into the input database
      *
-     * @param cfk Describes the relevant columns
-     * @param tableName table name
+     * @param cfk       Describes the relevant columns
+     * @param tableName Table name
      */
     void insertEdges(CompositeForeignKey cfk, String tableName) {
         String sql = "";

@@ -5,17 +5,34 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Vector;
 
+/**
+ * A connection pool implementation for manageing database connections.
+ * This class allows efficient reuse of database connections to improve performance.
+ */
 public class ConnectionPool implements Runnable {
-    private String connectionString;
-    private int maxConnections;
-    private boolean waitIfBusy;
-    public Vector<Connection> availableConnections, busyConnections;
-    private boolean connectionPending = false;
+    private String connectionString;    // JDBC connection string
+    private int maxConnections;         // Maximum number of connections allowed
+    private boolean waitIfBusy;         // Flag to indicate whether to wait if all connections are busy
+    public Vector<Connection> availableConnections, busyConnections; // Vectors to store available and busy connections
+    private boolean connectionPending = false; // Flag to indicate if a connection is being established
 
+    /**
+     * Default constructor for ConnectionPool.
+     */
     public ConnectionPool() {
 
     }
 
+    /**
+     * Constructs a ConnectionPool with the specified parameters.
+     *
+     * @param driver            JDBC driver class name
+     * @param connectionString  JDBC connection string
+     * @param initialConnections Initial number of connections to create
+     * @param maxConnections    Maximum number of connections allowed in the pool
+     * @param waitIfBusy        Flag to indicate whether to wait if all connections are busy
+     * @throws SQLException     If an SQL exception occurs while creating connections
+     */
     public ConnectionPool(String driver, String connectionString, int initialconnections,
             int maxConnections, boolean waitIfBusy) throws SQLException {
         this.connectionString = connectionString;
@@ -34,6 +51,13 @@ public class ConnectionPool implements Runnable {
         }
     }
 
+    /**
+     * Retrieves a connection from the pool.
+     *
+     * @return A database Connection object
+     * @throws SQLException If unable to retrieve a connection
+     * @throws InterruptedExecution If interrupted while waiting for a connection
+     */
     public synchronized Connection getConnection() throws SQLException {
         if (!availableConnections.isEmpty()) {
             Connection existingConnection = (Connection) availableConnections.lastElement();
@@ -59,25 +83,43 @@ public class ConnectionPool implements Runnable {
         }
         try {
             wait();
-        } catch (InterruptedException ie) {
-
+        } catch (InterruptedException e) {
+            // Interrupted while waiting for a connection
+            e.printStackTrace();
         } return (getConnection());
     }
 
+    /**
+     * Calculates the total number of connections in the pool.
+     *
+     * @return Total number of connections
+     */
     private int totalConnections() {
         return (availableConnections.size() + busyConnections.size());
     }
 
+    /**
+     * Initiates a background thread to create a new connection.
+     * 
+     * @throws OutOfMemoryError If unable to start a new thread due to out of memory.
+     */
     private void makeBackgroundConnection() {
         connectionPending = true;
         try {
             Thread connectThread = new Thread(this);
             connectThread.start();
         } catch (OutOfMemoryError e) {
-
+            // Unable to start a new thread due to out of memory
+            e.printStackTrace();
         }
     }
 
+    /**
+     * Creates a new database connection.
+     *
+     * @return A new database Connection object
+     * @throws SQLException If unable to create a new connection
+     */
     private Connection makeNewConnection() throws SQLException {
         try {
             // Class.forName(driver);
@@ -89,12 +131,20 @@ public class ConnectionPool implements Runnable {
         }
     }
 
+    /**
+     * Frees up a connection and returns it to the pool.
+     *
+     * @param connection The Connection object to be freed
+     */
     public synchronized void free(Connection connection) {
         busyConnections.removeElement(connection);
         availableConnections.addElement(connection);
         notifyAll();
     }
 
+    /**
+     * Closes all connections in the pool.
+     */
     public synchronized void closeAllConnections() {
         System.out.print("Closing all connections to the server... \r");
         closeConnections(availableConnections);
@@ -104,6 +154,11 @@ public class ConnectionPool implements Runnable {
         System.out.print("Closed all connections to the server.   ");
     }
 
+    /**
+     * Closes all connections in the specified vector.
+     *
+     * @param connections Vector of Connection objects to be closed
+     */
     private void closeConnections(Vector<Connection> connections) {
         try {
             for (int i = 0; i < connections.size(); i++) {
@@ -117,10 +172,18 @@ public class ConnectionPool implements Runnable {
         }
     }
 
+    /**
+     * Sets the waitIfBusy flag.
+     *
+     * @param bool The boolean value to set
+     */
     public void setWaitIfBusy(Boolean bool) {
         waitIfBusy = bool;
     }
 
+    /**
+     * Background thread implementation to create a new connection.
+     */
     public void run() {
         try {
             Connection connection = makeNewConnection();
