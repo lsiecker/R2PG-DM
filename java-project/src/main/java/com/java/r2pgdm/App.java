@@ -6,6 +6,7 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -38,15 +39,17 @@ public class App {
         try {
             Long start = System.currentTimeMillis();
             // Read the configuration from the .ini file.
-            Wini ini = new Wini(new File("configs/mysql/world.ini"));
+            Wini ini = new Wini(new File("configs/sqlite/chinook.ini"));
             Config input = GetConfiguration(ini.get("input"));
 
             // Establish the database connection pool
             inputConn = new InputConnection(input.connectionString, input.database, input.driver);
             new OutputConnection(inputConn);
 
-            // Retriee the table names from the input database
+            // Retrieve the table names from the input database
             List<String> tables = inputConn.retrieveTableNames();
+            Map<String, List<CompositeForeignKey>> joinTables = inputConn.retrieveJoinTableNames(tables);
+            tables.removeAll(joinTables.keySet());
 
             // Transform tables in parallel
             ExecutorService executorService = Executors.newCachedThreadPool();
@@ -63,10 +66,15 @@ public class App {
             awaitTableCompletion(tFinished); // Wait for nodes and properties to finish creating
             System.out.println("Nodes with properties created");
 
-            // Create edges
+            // Create edges without properties
             tables.forEach(t -> tFinished.add(executorService.submit(() -> OutputConnection.createEdges(inputConn, t))));
             awaitTableCompletion(tFinished); // Wait for edges to finish creating
             System.out.println("Edges created");
+
+            // Create edges with properties
+            joinTables.forEach((k,v) -> tFinished.add(executorService.submit(()-> OutputConnection.createEdgesAndProperties(inputConn, k, v))));
+            awaitTableCompletion(tFinished);
+            System.out.println("Edges with properties created");
 
             // Print the statistics
             OutputConnection.printStatistics();
