@@ -1,1 +1,5 @@
-com\java\r2pgdm\AppTest.class
+com\java\r2pgdm\CompositeForeignKeyTest.class
+com\java\r2pgdm\ConnectionPoolTest.class
+com\java\r2pgdm\IdentifierTest.class
+com\java\r2pgdm\InputConnectionTest.class
+com\java\r2pgdm\OutputConnectionTest.class
