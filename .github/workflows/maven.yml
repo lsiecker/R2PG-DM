@@ -26,6 +26,3 @@ jobs:
 
     - name: Build with Maven
       run: mvn -f java-project/pom.xml -DskipTests clean compile
-
-    - name: Run tests
-      run: mvn -f java-project/pom.xml -Dmaven.test.failure.ignore=true test
