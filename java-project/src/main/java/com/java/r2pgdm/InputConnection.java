@@ -85,13 +85,12 @@ public class InputConnection {
      */
     List<String> retrieveTableNames() {
         List<String> tables = new ArrayList<>();
-        List<String> joinTables = new ArrayList<>();
 
         try {
             ResultSet rs = _metaData.getTables(_schema, null, "%", TYPES);
             while (rs.next()) {
                 String name = rs.getString(3);
-                String[] forbidden = {"node", "property", "edge"};
+                String[] forbidden = {"node", "property", "edge", "node_c1", "node_c2", "edge_c1", "edge_c2", "property_c1", "property_c2"};
                 if (!Arrays.asList(forbidden).contains(name)) {
                     tables.add(name);
                 }

@@ -39,7 +39,7 @@ public class App {
         try {
             Long start = System.currentTimeMillis();
             // Read the configuration from the .ini file.
-            Wini ini = new Wini(new File("configs/sqlite/chinook.ini"));
+            Wini ini = new Wini(new File("configs/mysql/world.ini"));
             Config input = GetConfiguration(ini.get("input"));
 
             // Establish the database connection pool
