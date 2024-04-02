@@ -25,7 +25,7 @@ jobs:
         distribution: 'temurin'
 
     - name: Build with Maven
-      run: mvn -f -DskipTests java-project/pom.xml clean compile
+      run: mvn -f java-project/pom.xml -DskipTests clean compile
 
     - name: Run tests
-      run: mvn -f -Dmaven.test.failure.ignore=true java-project/pom.xml test
+      run: mvn -f java-project/pom.xml -Dmaven.test.failure.ignore=true test
