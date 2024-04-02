@@ -167,4 +167,14 @@ public class InputConnectionTest {
             tablesProcessed++;
         }
     }
+
+    @Test
+    public void TestRetrieveJoinTableNames() throws SQLException {
+        List<String> tables = input.retrieveTableNames();
+
+        Map<String, List<CompositeForeignKey>> join_tables = input.retrieveJoinTableNames(tables);
+
+        assertEquals(0, join_tables.size());
+    }
 }
+

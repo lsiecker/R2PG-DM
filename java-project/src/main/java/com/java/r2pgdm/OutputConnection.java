@@ -121,7 +121,7 @@ public class OutputConnection {
 
                 // Cell might contain null, in which case we don't want to add a property to the node
                 if (attributeValue != null) {
-                    properties.add(new Property(nodeIdentifier, attributeName, attributeValue.toString()));
+                    properties.add(new Property(nodeIdentifier, attributeName, attributeValue.toString().replaceAll("[, ' \"]", "").strip()));
                 }
             }
         } catch (SQLException e) {
@@ -135,6 +135,13 @@ public class OutputConnection {
         List<CompositeForeignKey> fks = inputConn.retrieveCompositeForeignKeys(t);
         System.out.println(fks.size() + " fks where found in table " + t);
         fks.forEach(fk -> inputConn.insertEdges(fk, t));
+    }
+
+    static void createEdgesAndProperties(InputConnection inputConn, String k, List<CompositeForeignKey> v) {
+        // System.out.println("Composite Foreign Key in this table:" + k.toString() + " | " + v.toString());
+        // There are two items in v, for which both target items need to be connected, with the properties in the edge.
+
+        inputConn.insertJoinEdges(v.get(0), v.get(1), k);
     }
 
     /**
