@@ -2,7 +2,6 @@ package com.java.r2pgdm;
 
 import java.sql.*;
 import java.util.*;
-import java.util.stream.Collectors;
 
 import com.java.r2pgdm.graph.Edge;
 import com.java.r2pgdm.graph.Node;
@@ -52,9 +51,9 @@ public class InputConnection {
      */
     private void connect(String connectionString) {
         try {
-            connectionPool = new ConnectionPool(driver, connectionString, 0, 12, true);
-            // conn = connectionPool.getConnection();
-            // conn.setAutoCommit(false);
+            connectionPool = new ConnectionPool(driver, connectionString, 0, 30, true);
+            Connection conn = connectionPool.getConnection();
+            conn.setAutoCommit(false);
             System.out.println("Connection for input established.");
         } catch (SQLException e) {
             e.printStackTrace();
@@ -500,10 +499,6 @@ public class InputConnection {
      */
     void insertEdges(CompositeForeignKey cfk, String tableName) {
         String sql = "";
-
-        if (tableName == "rental" | tableName == "payment" ) {
-            System.out.println("Here");
-        }
 
         sql = sql.concat("WITH ")
                 .concat(joinableColumnsQuery(cfk))

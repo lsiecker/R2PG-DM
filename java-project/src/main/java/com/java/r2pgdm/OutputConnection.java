@@ -325,4 +325,69 @@ public class OutputConnection {
 
         return getResultSet(sql);
     }
+
+    public static void copyTable(InputConnection inputConn, String t) {
+        // Get table structure from inputConn
+        try {
+            System.out.println("Copying table " + t);
+            Connection conn_input = inputConn.connectionPool.getConnection();
+            Connection conn_output = connectionPool.getConnection();
+            ResultSet values = conn_input.createStatement().executeQuery("SELECT * FROM " + t + ";");
+            ResultSetMetaData valuesMd = values.getMetaData();
+
+            // Create a new table in the output database
+            Statement stmt = conn_output.createStatement();
+
+            // Remove all tables that have the same name as the input table
+            stmt.executeUpdate("DROP TABLE IF EXISTS " + t + ";");
+
+            StringBuilder sql = new StringBuilder("CREATE TABLE " + t + "(");
+
+            // Create the table structure
+            for (int i = 1; i <= valuesMd.getColumnCount(); i++) {
+                String columnName = valuesMd.getColumnName(i);
+                String columnType = valuesMd.getColumnTypeName(i);
+                int columnSize = valuesMd.getColumnDisplaySize(i);
+                boolean isNullable = valuesMd.isNullable(i) == ResultSetMetaData.columnNullable;
+            
+                // Append column name and type
+                sql.append(columnName + " " + columnType);
+            
+                // Append column size if applicable (e.g., VARCHAR)
+                if (columnSize > 0 && (columnType.equalsIgnoreCase("VARCHAR") || columnType.equalsIgnoreCase("CHAR"))) {
+                    sql.append("(" + columnSize + ")");
+                }
+            
+                // Append NULL/NOT NULL
+                sql.append(isNullable ? " NULL" : " NOT NULL");
+            
+                // Append comma if not the last column
+                if (i < valuesMd.getColumnCount()) {
+                    sql.append(", ");
+                }
+            }
+
+            // Remove the last comma and close the statement
+            sql.append(");");
+            stmt.executeUpdate(sql.toString());
+
+            // Copy the data from the input database to the output database
+            stmt.executeUpdate("INSERT INTO " + t + " SELECT * FROM " + t + ";");
+            connectionPool.free(conn_output);
+            inputConn.connectionPool.free(conn_input);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } finally {
+            System.out.println("Table " + t + " copied");
+        }
+    }
+
+    public static void drop_tables_output(String t) {
+        try {
+            Statement stmt = connectionPool.getConnection().createStatement();
+            stmt.executeUpdate("DROP TABLE IF EXISTS " + t + ";");
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
 }

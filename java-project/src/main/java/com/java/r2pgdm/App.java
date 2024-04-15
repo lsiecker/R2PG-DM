@@ -21,7 +21,7 @@ import org.ini4j.Profile.Section;
  */
 public class App {
     public static PreparedStatement _statementEdges;
-    public static InputConnection inputConn;
+    public static InputConnection inputConn, outputConn;
 
     /**
      * Main method to start the data migration process.
@@ -33,27 +33,34 @@ public class App {
         Runtime.getRuntime().addShutdownHook(new Thread() {
             public void run() {
                 inputConn.connectionPool.closeAllConnections();
+                outputConn.connectionPool.closeAllConnections();
             }
         });
 
         try {
             Long start = System.currentTimeMillis();
             // Read the configuration from the .ini file.
-            Wini ini = new Wini(new File("configs/mysql/world.ini"));
+            Wini ini = new Wini(new File("configs/mysql/tpch.ini"));
             Config input = GetConfiguration(ini.get("input"));
+            Config output = GetConfiguration(ini.get("output"));
 
             // Establish the database connection pool
             inputConn = new InputConnection(input.connectionString, input.database, input.driver);
-            new OutputConnection(inputConn);
+            outputConn = new InputConnection(output.connectionString, output.database, output.driver);
+            new OutputConnection(outputConn);
 
             // Retrieve the table names from the input database
-            List<String> tables = inputConn.retrieveTableNames();
+            List<String> all_tables = inputConn.retrieveTableNames();
+            List<String> tables = new ArrayList<>(all_tables);
             Map<String, List<CompositeForeignKey>> joinTables = inputConn.retrieveJoinTableNames(tables);
             tables.removeAll(joinTables.keySet());
 
             // Transform tables in parallel
             ExecutorService executorService = Executors.newCachedThreadPool();
             ArrayList<Future<?>> tFinished = new ArrayList<>();
+
+            System.out.println(inputConn.connectionPool.busyConnections.size() + " busy connections");
+            System.out.println(outputConn.connectionPool.busyConnections.size() + " busy connections");
 
             // Create nodes and their properties
             tables.forEach(t -> tFinished.add(executorService.submit(() -> {
@@ -66,15 +73,31 @@ public class App {
             awaitTableCompletion(tFinished); // Wait for nodes and properties to finish creating
             System.out.println("Nodes with properties created");
 
+            System.out.println(inputConn.connectionPool.busyConnections.size() + " busy connections");
+            System.out.println(outputConn.connectionPool.busyConnections.size() + " busy connections");
+
             // Create edges without properties
-            tables.forEach(t -> tFinished.add(executorService.submit(() -> OutputConnection.createEdges(inputConn, t))));
+            all_tables.forEach(t -> tFinished.add(executorService.submit(() -> OutputConnection.copyTable(inputConn, t))));
+            awaitTableCompletion(tFinished); // Wait for edges to finish creating
+
+            System.out.println(inputConn.connectionPool.busyConnections.size() + " busy connections");
+            System.out.println(outputConn.connectionPool.busyConnections.size() + " busy connections");
+
+            // Create edges without properties
+            tables.forEach(t -> tFinished.add(executorService.submit(() -> OutputConnection.createEdges(outputConn, t))));
             awaitTableCompletion(tFinished); // Wait for edges to finish creating
             System.out.println("Edges created");
 
+            System.out.println(inputConn.connectionPool.busyConnections.size() + " busy connections");
+            System.out.println(outputConn.connectionPool.busyConnections.size() + " busy connections");
+
             // Create edges with properties
-            joinTables.forEach((k,v) -> tFinished.add(executorService.submit(()-> OutputConnection.createEdgesAndProperties(inputConn, k, v))));
+            joinTables.forEach((k,v) -> tFinished.add(executorService.submit(()-> OutputConnection.createEdgesAndProperties(outputConn, k, v))));
             awaitTableCompletion(tFinished);
             System.out.println("Edges with properties created");
+
+            all_tables.forEach(t -> tFinished.add(executorService.submit(() -> OutputConnection.drop_tables_output(t))));
+            awaitTableCompletion(tFinished); // Wait for edges to finish creating
 
             // Print the statistics
             OutputConnection.printStatistics();
@@ -91,6 +114,7 @@ public class App {
         } finally {
             // Clean up database connection
             inputConn.connectionPool.closeAllConnections();
+            outputConn.connectionPool.closeAllConnections();
         }
     }
 
@@ -118,6 +142,8 @@ public class App {
      */
     private static Config GetConfiguration(Section section) {
         if (section.getName().equals("input")) {
+            return new Config(section.get("connectionString"), section.get("driver"), section.get("database"));
+        } else if (section.getName().equals("output")) {
             return new Config(section.get("connectionString"), section.get("driver"), section.get("database"));
         }
         return new Config(section.get("connectionString"));
