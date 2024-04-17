@@ -1,12 +1,17 @@
 package com.java.r2pgdm;
 
 import java.sql.*;
+import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+
+import org.locationtech.jts.io.WKTWriter;
 
 import com.java.r2pgdm.graph.Edge;
 import com.java.r2pgdm.graph.Node;
 import com.java.r2pgdm.graph.Property;
+import com.microsoft.sqlserver.jdbc.Geometry;
 
 /**
  * Contains functionality regarding output to the input database
@@ -131,10 +136,10 @@ public class OutputConnection {
         return properties;
     }
 
-    static void createEdges(InputConnection inputConn, String t) {
+    static void createEdges(InputConnection inputConn, InputConnection outputconn, String t) {
         List<CompositeForeignKey> fks = inputConn.retrieveCompositeForeignKeys(t);
         System.out.println(fks.size() + " fks where found in table " + t);
-        fks.forEach(fk -> inputConn.insertEdges(fk, t));
+        fks.forEach(fk -> outputconn.insertEdges(fk, t));
     }
 
     static void createEdgesAndProperties(InputConnection inputConn, String k, List<CompositeForeignKey> v) {
@@ -326,13 +331,13 @@ public class OutputConnection {
         return getResultSet(sql);
     }
 
-    public static void copyTable(InputConnection inputConn, String t) {
+    public static void copyTable(InputConnection inputConn, InputConnection outputConn, String t) {
         // Get table structure from inputConn
         int totalEntries = 0;
         try {
             System.out.println("Copying table " + t + "\r");
             Connection conn_input = inputConn.connectionPool.getConnection();
-            Connection conn_output = connectionPool.getConnection();
+            Connection conn_output = outputConn.connectionPool.getConnection();
             String sql = "SELECT * FROM " + t + " LIMIT ? OFFSET ?;";
 
             int offset = 0;
@@ -390,10 +395,21 @@ public class OutputConnection {
                     sqlInsert.append("(");
                     for (int i = 1; i <= valuesMd.getColumnCount(); i++) {
                         Object value = values.getObject(i);
+
                         if (value == null) {
                             sqlInsert.append("NULL");
+                        } else if (value instanceof Timestamp || value instanceof LocalDateTime) {
+                            sqlInsert.append("'" + value.toString() + "'");
+                        } else if (value instanceof Geometry) {
+                            org.locationtech.jts.geom.Geometry geometryValue = (org.locationtech.jts.geom.Geometry) value;
+                            WKTWriter wktWriter = new WKTWriter();
+                            String geometryString = wktWriter.write(geometryValue); // Convert Geometry to string
+                            sqlInsert.append("'" + geometryString + "'");
+                        } else if (value instanceof Long) {
+                            sqlInsert.append(value); // No need to wrap in single quotes for Long
                         } else {
-                            sqlInsert.append("'" + value.toString().replaceAll("[, ' \"]", "").strip() + "'");
+                            // For other types, simply escape special characters
+                            sqlInsert.append("'" + value.toString().replaceAll("[, ' \"]", "") + "'");
                         }
                         if (i < valuesMd.getColumnCount()) {
                             sqlInsert.append(", ");
@@ -410,7 +426,6 @@ public class OutputConnection {
                     try {
                         conn_output.createStatement().executeUpdate(sqlInsert.toString());
                     } catch (SQLException e) {
-                        // System.out.println(sqlInsert.toString());
                         // e.printStackTrace();
                     }
                 }
@@ -420,7 +435,7 @@ public class OutputConnection {
                 moreData = batchCount == batchSize;
                 offset += batchSize;
             }
-            connectionPool.free(conn_output);
+            outputConn.connectionPool.free(conn_output);
             inputConn.connectionPool.free(conn_input);
             System.out.println("Table " + t + " copied: " + totalEntries);
         } catch (SQLException e) {

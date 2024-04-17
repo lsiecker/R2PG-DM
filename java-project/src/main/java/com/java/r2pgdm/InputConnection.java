@@ -55,7 +55,7 @@ public class InputConnection {
      */
     private void connect(String connectionString) {
         try {
-            connectionPool = new ConnectionPool(driver, connectionString, 0, 30, true);
+            connectionPool = new ConnectionPool(driver, connectionString, 0, 64, true);
             Connection conn = connectionPool.getConnection();
             conn.setAutoCommit(false);
             System.out.println("Connection for input established.");

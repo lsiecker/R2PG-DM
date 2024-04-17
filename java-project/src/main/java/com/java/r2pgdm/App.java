@@ -40,7 +40,7 @@ public class App {
         try {
             Long start = System.currentTimeMillis();
             // Read the configuration from the .ini file.
-            Wini ini = new Wini(new File("configs/mysql/sakila.ini"));
+            Wini ini = new Wini(new File("configs/mysql/tpch.ini"));
             Config input = GetConfiguration(ini.get("input"));
             Config output = GetConfiguration(ini.get("output"));
 
@@ -63,7 +63,7 @@ public class App {
             System.out.println(outputConn.connectionPool.busyConnections.size() + " busy connections");
 
             // Copy the necessary tables from the input to the output database
-            all_tables.forEach(t -> tFinished.add(executorService.submit(() -> OutputConnection.copyTable(inputConn, t))));
+            all_tables.forEach(t -> tFinished.add(executorService.submit(() -> OutputConnection.copyTable(inputConn, outputConn, t))));
             awaitTableCompletion(tFinished);
 
             System.out.println(inputConn.connectionPool.busyConnections.size() + " busy connections");
@@ -83,7 +83,7 @@ public class App {
             System.out.println(outputConn.connectionPool.busyConnections.size() + " busy connections");
 
             // Create edges without properties
-            tables.forEach(t -> tFinished.add(executorService.submit(() -> OutputConnection.createEdges(outputConn, t))));
+            tables.forEach(t -> tFinished.add(executorService.submit(() -> OutputConnection.createEdges(inputConn, outputConn, t))));
             awaitTableCompletion(tFinished); // Wait for edges to finish creating
             System.out.println("Edges created");
 

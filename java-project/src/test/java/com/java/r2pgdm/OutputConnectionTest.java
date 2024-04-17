@@ -93,7 +93,7 @@ public class OutputConnectionTest {
         }
 
         for (String t : tables) {
-            OutputConnection.createEdges(input, t);
+            OutputConnection.createEdges(input, input, t);
         }
 
         Statement stmt = conn.createStatement();
