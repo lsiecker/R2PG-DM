@@ -62,6 +62,13 @@ public class App {
             System.out.println(inputConn.connectionPool.busyConnections.size() + " busy connections");
             System.out.println(outputConn.connectionPool.busyConnections.size() + " busy connections");
 
+            // Copy the necessary tables from the input to the output database
+            all_tables.forEach(t -> tFinished.add(executorService.submit(() -> OutputConnection.copyTable(inputConn, t))));
+            awaitTableCompletion(tFinished);
+
+            System.out.println(inputConn.connectionPool.busyConnections.size() + " busy connections");
+            System.out.println(outputConn.connectionPool.busyConnections.size() + " busy connections");
+
             // Create nodes and their properties
             tables.forEach(t -> tFinished.add(executorService.submit(() -> {
                 try {
@@ -72,14 +79,6 @@ public class App {
             })));
             awaitTableCompletion(tFinished); // Wait for nodes and properties to finish creating
             System.out.println("Nodes with properties created");
-
-            System.out.println(inputConn.connectionPool.busyConnections.size() + " busy connections");
-            System.out.println(outputConn.connectionPool.busyConnections.size() + " busy connections");
-
-            // Create edges without properties
-            all_tables.forEach(t -> tFinished.add(executorService.submit(() -> OutputConnection.copyTable(inputConn, t))));
-            awaitTableCompletion(tFinished); // Wait for edges to finish creating
-
             System.out.println(inputConn.connectionPool.busyConnections.size() + " busy connections");
             System.out.println(outputConn.connectionPool.busyConnections.size() + " busy connections");
 

@@ -332,47 +332,94 @@ public class OutputConnection {
             System.out.println("Copying table " + t);
             Connection conn_input = inputConn.connectionPool.getConnection();
             Connection conn_output = connectionPool.getConnection();
-            ResultSet values = conn_input.createStatement().executeQuery("SELECT * FROM " + t + ";");
-            ResultSetMetaData valuesMd = values.getMetaData();
+            String sql = "SELECT * FROM " + t + " LIMIT ? OFFSET ?;";
 
-            // Create a new table in the output database
-            Statement stmt = conn_output.createStatement();
+            int offset = 0;
+            boolean moreData = true;
+            int batchSize = 100000;
+            int totalEntries = 0;
+            PreparedStatement stmt = conn_input.prepareStatement(sql);
 
-            // Remove all tables that have the same name as the input table
-            stmt.executeUpdate("DROP TABLE IF EXISTS " + t + ";");
+            // If the table exists in the database, remove it
+            conn_output.createStatement().executeUpdate("DROP TABLE IF EXISTS " + t + ";");
 
-            StringBuilder sql = new StringBuilder("CREATE TABLE " + t + "(");
+            while (moreData) {
+                stmt.setInt(1, batchSize);
+                stmt.setInt(2, offset);
+                ResultSet values = stmt.executeQuery();
+                ResultSetMetaData valuesMd = values.getMetaData();            
+                
+                if (offset == 0) {
+                    // If the table does not exist, create it
+                    StringBuilder sqlCreate = new StringBuilder("CREATE TABLE " + t + "(");
 
-            // Create the table structure
-            for (int i = 1; i <= valuesMd.getColumnCount(); i++) {
-                String columnName = valuesMd.getColumnName(i);
-                String columnType = valuesMd.getColumnTypeName(i);
-                int columnSize = valuesMd.getColumnDisplaySize(i);
-                boolean isNullable = valuesMd.isNullable(i) == ResultSetMetaData.columnNullable;
-            
-                // Append column name and type
-                sql.append(columnName + " " + columnType);
-            
-                // Append column size if applicable (e.g., VARCHAR)
-                if (columnSize > 0 && (columnType.equalsIgnoreCase("VARCHAR") || columnType.equalsIgnoreCase("CHAR"))) {
-                    sql.append("(" + columnSize + ")");
+                    // Create the table structure
+                    for (int i = 1; i <= valuesMd.getColumnCount(); i++) {
+                        String columnName = valuesMd.getColumnName(i);
+                        String columnType = valuesMd.getColumnTypeName(i);
+                        int columnSize = valuesMd.getColumnDisplaySize(i);
+                        boolean isNullable = valuesMd.isNullable(i) == ResultSetMetaData.columnNullable;
+                    
+                        // Append column name and type
+                        sqlCreate.append(columnName + " " + columnType);
+                    
+                        // Append column size if applicable (e.g., VARCHAR)
+                        if (columnSize > 0 && (columnType.equalsIgnoreCase("VARCHAR") || columnType.equalsIgnoreCase("CHAR"))) {
+                            sqlCreate.append("(" + columnSize + ")");
+                        }
+                    
+                        // Append NULL/NOT NULL
+                        sqlCreate.append(isNullable ? " NULL" : " NOT NULL");
+                    
+                        // Append comma if not the last column
+                        if (i < valuesMd.getColumnCount()) {
+                            sqlCreate.append(", ");
+                        }
+                    }
+
+                    // Remove the last comma and close the statement
+                    sqlCreate.append(");");
+                    conn_output.createStatement().executeUpdate(sqlCreate.toString());
                 }
             
-                // Append NULL/NOT NULL
-                sql.append(isNullable ? " NULL" : " NOT NULL");
-            
-                // Append comma if not the last column
-                if (i < valuesMd.getColumnCount()) {
-                    sql.append(", ");
+                // Insert the data into the table
+                StringBuilder sqlInsert = new StringBuilder("INSERT INTO " + t + " VALUES ");
+                int batchCount = 0;
+
+                while (values.next()) {
+                    sqlInsert.append("(");
+                    for (int i = 1; i <= valuesMd.getColumnCount(); i++) {
+                        Object value = values.getObject(i);
+                        if (value == null) {
+                            sqlInsert.append("NULL");
+                        } else {
+                            sqlInsert.append("'" + value.toString().replaceAll("[, ' \"]", "").strip() + "'");
+                        }
+                        if (i < valuesMd.getColumnCount()) {
+                            sqlInsert.append(", ");
+                        }
+                    }
+                    sqlInsert.append("), ");
+                    totalEntries++;
+                    batchCount++;
                 }
+
+                // Remove the last comma after check that there is a trailing comma
+                if (sqlInsert.toString().endsWith(", ")) {
+                    sqlInsert.delete(sqlInsert.length() - 2, sqlInsert.length());
+                    try {
+                        conn_output.createStatement().executeUpdate(sqlInsert.toString());
+                    } catch (SQLException e) {
+                        System.out.println(sqlInsert.toString());
+                        e.printStackTrace();
+                    }
+                }
+    
+
+                // Check if there are more entries
+                moreData = batchCount == batchSize;
+                offset += batchSize;
             }
-
-            // Remove the last comma and close the statement
-            sql.append(");");
-            stmt.executeUpdate(sql.toString());
-
-            // Copy the data from the input database to the output database
-            stmt.executeUpdate("INSERT INTO " + t + " SELECT * FROM " + t + ";");
             connectionPool.free(conn_output);
             inputConn.connectionPool.free(conn_input);
         } catch (SQLException e) {
