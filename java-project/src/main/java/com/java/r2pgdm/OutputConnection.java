@@ -328,8 +328,9 @@ public class OutputConnection {
 
     public static void copyTable(InputConnection inputConn, String t) {
         // Get table structure from inputConn
+        int totalEntries = 0;
         try {
-            System.out.println("Copying table " + t);
+            System.out.println("Copying table " + t + "\r");
             Connection conn_input = inputConn.connectionPool.getConnection();
             Connection conn_output = connectionPool.getConnection();
             String sql = "SELECT * FROM " + t + " LIMIT ? OFFSET ?;";
@@ -337,7 +338,6 @@ public class OutputConnection {
             int offset = 0;
             boolean moreData = true;
             int batchSize = 100000;
-            int totalEntries = 0;
             PreparedStatement stmt = conn_input.prepareStatement(sql);
 
             // If the table exists in the database, remove it
@@ -410,8 +410,8 @@ public class OutputConnection {
                     try {
                         conn_output.createStatement().executeUpdate(sqlInsert.toString());
                     } catch (SQLException e) {
-                        System.out.println(sqlInsert.toString());
-                        e.printStackTrace();
+                        // System.out.println(sqlInsert.toString());
+                        // e.printStackTrace();
                     }
                 }
     
@@ -422,10 +422,10 @@ public class OutputConnection {
             }
             connectionPool.free(conn_output);
             inputConn.connectionPool.free(conn_input);
+            System.out.println("Table " + t + " copied: " + totalEntries);
         } catch (SQLException e) {
             e.printStackTrace();
         } finally {
-            System.out.println("Table " + t + " copied");
         }
     }
 

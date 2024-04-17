@@ -2,6 +2,10 @@ package com.java.r2pgdm;
 
 import java.sql.*;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import com.java.r2pgdm.graph.Edge;
 import com.java.r2pgdm.graph.Node;
@@ -229,69 +233,96 @@ public class InputConnection {
      * @param tableName     Name of table in the input database
      */
     void createNodesAndProperties(String tableName) throws SQLException {
+        Connection conn = connectionPool.getConnection();
+        int row_count = getRowCount(conn, tableName);
+    
+        ExecutorService executorService = Executors.newCachedThreadPool();
+        ArrayList<Future<Integer>> tFinished = new ArrayList<>();
+    
         List<String> cols = getColumns(tableName);
         StringBuilder sqlSB = new StringBuilder("SELECT ");
-
-        cols.stream().forEach(c -> sqlSB.append(c).append(","));
-
-        sqlSB.append(" ROW_NUMBER() OVER (ORDER BY (".concat(cols.get(0)).concat(")) AS rId FROM "));
-        sqlSB.append(Character.toString(_Quoting).concat(tableName).concat(Character.toString(_Quoting)));
+    
+        cols.forEach(c -> sqlSB.append(c).append(","));
+    
+        sqlSB.append(" ROW_NUMBER() OVER (ORDER BY (").append(cols.get(0)).append(")) AS rId FROM ");
+        sqlSB.append(Character.toString(_Quoting)).append(tableName).append(Character.toString(_Quoting));
         sqlSB.append(" GROUP BY ");
-
-        cols.stream().forEach(c -> sqlSB.append(c).append(","));
-
+    
+        cols.forEach(c -> sqlSB.append(c).append(","));
+    
         sqlSB.setLength(sqlSB.length() - 1);
         sqlSB.append(" LIMIT ? OFFSET ?;");
-
+    
         String sql = sqlSB.toString();
-        Connection conn = connectionPool.getConnection();
-        try {
-            PreparedStatement stmt = conn.prepareStatement(sql, ResultSet.TYPE_FORWARD_ONLY,
-                    ResultSet.CONCUR_READ_ONLY);
-
+    
+        try {    
             int offset = 0;
-            boolean moreData = true;
             int batchSize = 100000;
             int totalNodes = 0;
+    
+            while (offset < row_count) {
+                final int currentOffset = offset;
+    
+                Future<Integer> future = executorService.submit(() -> {
+                    Connection connThread = connectionPool.getConnection();
+                    PreparedStatement stmt = connThread.prepareStatement(sql, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
 
-            while (moreData) {
-                // Set parameters for pagination
-                stmt.setInt(1, batchSize);
-                stmt.setInt(2, offset);
-
-                // Retrieve the data
-                ResultSet values = stmt.executeQuery();
-                ResultSetMetaData valuesMd = values.getMetaData();
-
-                // Process the Nodes and Properties in the current batch
-                int rowCount = batchProcessNodes(values, valuesMd, tableName);
-                values.close();
-
-                // Check if there is another batch available
-                if (rowCount < batchSize) {
-                    moreData = false;
-                }
-
+                    // Set parameters for pagination
+                    stmt.setInt(1, batchSize);
+                    stmt.setInt(2, currentOffset);
+    
+                    // Retrieve the data
+                    ResultSet values = stmt.executeQuery();
+                    ResultSetMetaData valuesMd = values.getMetaData();
+    
+                    // Process the Nodes and Properties in the current batch
+                    int rowCount = batchProcessNodes(values, valuesMd, tableName);
+                    values.close();
+                    connectionPool.free(connThread);
+                    stmt.close();
+                    return rowCount;
+                });
+    
+                tFinished.add(future);
+    
                 // Update the parameters for pagination
                 offset += batchSize;
-                totalNodes += rowCount;            
-                
-                // Report the progress in the console
-                progressMap.put(tableName, totalNodes);
-                reportProgress();
             }
-            
-            stmt.close();
+    
+            // Wait for all threads to complete
+            for (Future<Integer> future : tFinished) {
+                try {
+                    totalNodes += future.get();
+                    // Report the progress in the console
+                    progressMap.put(tableName, totalNodes);
+                    reportProgress();
+                } catch (InterruptedException | ExecutionException e) {
+                    e.printStackTrace();
+                }
+            }
+
             progressMap.put(tableName, "Done");
             reportProgress();
-            
-        } catch (SQLException e) {
+        } catch (Exception e) {
             e.printStackTrace();
             System.out.println(sql);
         } finally {
             // Make the connection available again in the connection pool
             connectionPool.free(conn);
         }
+    
+        // Shutdown the executor after all tasks are completed
+        executorService.shutdown();
+    }
+    
+    private int getRowCount(Connection conn, String tableName) throws SQLException {
+        PreparedStatement rowStmt = conn.prepareStatement("SELECT COUNT(*) AS row_count FROM " + tableName);
+        ResultSet rs = rowStmt.executeQuery();
+        int row_count = 0;
+        if (rs.next()) {
+            row_count = rs.getInt("row_count");
+        }
+        return row_count;
     }
 
     /**
@@ -436,7 +467,7 @@ public class InputConnection {
                     .concat("' THEN pvalue END) ")
                     .concat(fk.targetAttribute);
         }
-        return sql.concat(" FROM TargetNodes" + cfk.targetTable + " s GROUP BY s.id)");
+        return sql.concat(" FROM targetNodes" + cfk.targetTable + " s GROUP BY s.id)");
     }
 
     /**
