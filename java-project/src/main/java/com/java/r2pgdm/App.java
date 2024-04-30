@@ -40,7 +40,7 @@ public class App {
         try {
             Long start = System.currentTimeMillis();
             // Read the configuration from the .ini file.
-            Wini ini = new Wini(new File("configs/mysql/tpch.ini"));
+            Wini ini = new Wini(new File("configs/mysql/sakila.ini"));
             Config input = GetConfiguration(ini.get("input"));
             Config output = GetConfiguration(ini.get("output"));
 
@@ -59,15 +59,9 @@ public class App {
             ExecutorService executorService = Executors.newCachedThreadPool();
             ArrayList<Future<?>> tFinished = new ArrayList<>();
 
-            System.out.println(inputConn.connectionPool.busyConnections.size() + " busy connections");
-            System.out.println(outputConn.connectionPool.busyConnections.size() + " busy connections");
-
             // Copy the necessary tables from the input to the output database
             all_tables.forEach(t -> tFinished.add(executorService.submit(() -> OutputConnection.copyTable(inputConn, outputConn, t))));
             awaitTableCompletion(tFinished);
-
-            System.out.println(inputConn.connectionPool.busyConnections.size() + " busy connections");
-            System.out.println(outputConn.connectionPool.busyConnections.size() + " busy connections");
 
             // Create nodes and their properties
             tables.forEach(t -> tFinished.add(executorService.submit(() -> {
@@ -79,16 +73,11 @@ public class App {
             })));
             awaitTableCompletion(tFinished); // Wait for nodes and properties to finish creating
             System.out.println("Nodes with properties created");
-            System.out.println(inputConn.connectionPool.busyConnections.size() + " busy connections");
-            System.out.println(outputConn.connectionPool.busyConnections.size() + " busy connections");
 
             // Create edges without properties
             tables.forEach(t -> tFinished.add(executorService.submit(() -> OutputConnection.createEdges(inputConn, outputConn, t))));
             awaitTableCompletion(tFinished); // Wait for edges to finish creating
             System.out.println("Edges created");
-
-            System.out.println(inputConn.connectionPool.busyConnections.size() + " busy connections");
-            System.out.println(outputConn.connectionPool.busyConnections.size() + " busy connections");
 
             // Create edges with properties
             joinTables.forEach((k,v) -> tFinished.add(executorService.submit(()-> OutputConnection.createEdgesAndProperties(outputConn, k, v))));
@@ -106,6 +95,7 @@ public class App {
             // Generate CSV files
             System.out.println("Creating CSV files for Nodes, Properties and Edges");
             Export.generateCSVs("exports");
+            Export.generateCombinedGraph("exports", outputConn);
             System.out.println("CSV files generated");
 
         } catch (IOException e) {

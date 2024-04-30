@@ -1,5 +1,6 @@
 package com.java.r2pgdm;
 
+import java.io.IOException;
 import java.sql.*;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
@@ -340,6 +341,7 @@ public class InputConnection {
      * </p>
      */
     private synchronized void reportProgress() {
+   
         // Print progress for each table
         try {
             for (String tableName : progressMap.keySet()) {
@@ -354,11 +356,11 @@ public class InputConnection {
             }
             System.out.println(); // Add a newline after printing progress for all tables
         } catch (Exception e) {
-            // If the reportProgress is called twice at the same time, it is not really a problem
-            // Catch this occasion and continue. This only happens when datasets are really small.
+            // Handle exceptions
         }
-
     }
+    
+    
 
     /**
      * Query to find all tuples of values in the composite foreign key columns that exist in both source and target table.
@@ -552,7 +554,7 @@ public class InputConnection {
             ArrayList<Edge> edges = new ArrayList<>();
             int count = 0;
             int batchSize = 1000;
-            System.out.println("creating edges for table " + tableName);
+            // System.out.println("creating edges for table " + tableName);
 
             while (rs.next()) {
                 Integer id = Identifier.id(
@@ -566,7 +568,7 @@ public class InputConnection {
 
                 if (edges.size() >= batchSize) {
                     OutputConnection.insertEdgeRows(edges);
-                    System.out.println("Added " + count + " Edges for table " + tableName);
+                    // System.out.println("Added " + count + " Edges for table " + tableName);
 
                     edges.clear();
                 }
@@ -656,7 +658,7 @@ public class InputConnection {
             ArrayList<Property> properties = new ArrayList<>();
             int count = 0;
             int batchSize = 1000;
-            System.out.println("creating edges for join table " + tableName);
+            // System.out.println("creating edges for join table " + tableName);
 
             while (rs_1.next()) {
                 Integer id = Identifier.id(
@@ -674,7 +676,7 @@ public class InputConnection {
                 if (edges.size() >= batchSize) {
                     OutputConnection.insertEdgeRows(edges);
                     OutputConnection.insertPropertyRow(properties);
-                    System.out.println("Added " + count + " Edges for table " + tableName);
+                    // System.out.println("Added " + count + " Edges for table " + tableName);
 
                     edges.clear();
                     properties.clear();

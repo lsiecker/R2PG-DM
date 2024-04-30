@@ -1,7 +1,6 @@
 package com.java.r2pgdm;
 
 import java.sql.*;
-import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -138,7 +137,7 @@ public class OutputConnection {
 
     static void createEdges(InputConnection inputConn, InputConnection outputconn, String t) {
         List<CompositeForeignKey> fks = inputConn.retrieveCompositeForeignKeys(t);
-        System.out.println(fks.size() + " fks where found in table " + t);
+        // System.out.println(fks.size() + " fks where found in table " + t);
         fks.forEach(fk -> outputconn.insertEdges(fk, t));
     }
 
@@ -332,117 +331,92 @@ public class OutputConnection {
     }
 
     public static void copyTable(InputConnection inputConn, InputConnection outputConn, String t) {
-        // Get table structure from inputConn
         int totalEntries = 0;
         try {
-            System.out.println("Copying table " + t + "\r");
+            System.out.println("Copying table " + t);
             Connection conn_input = inputConn.connectionPool.getConnection();
             Connection conn_output = outputConn.connectionPool.getConnection();
-            String sql = "SELECT * FROM " + t + " LIMIT ? OFFSET ?;";
-
+    
+            // Setting up SQL to fetch data
+            String fetchSql = "SELECT * FROM " + t + " LIMIT ? OFFSET ?;";
+            PreparedStatement fetchStmt = conn_input.prepareStatement(fetchSql);
+    
+            // Check and drop existing table
+            conn_output.createStatement().executeUpdate("DROP TABLE IF EXISTS " + t + ";");
+    
             int offset = 0;
             boolean moreData = true;
             int batchSize = 100000;
-            PreparedStatement stmt = conn_input.prepareStatement(sql);
-
-            // If the table exists in the database, remove it
-            conn_output.createStatement().executeUpdate("DROP TABLE IF EXISTS " + t + ";");
-
+    
             while (moreData) {
-                stmt.setInt(1, batchSize);
-                stmt.setInt(2, offset);
-                ResultSet values = stmt.executeQuery();
-                ResultSetMetaData valuesMd = values.getMetaData();            
-                
+                fetchStmt.setInt(1, batchSize);
+                fetchStmt.setInt(2, offset);
+                ResultSet values = fetchStmt.executeQuery();
+                ResultSetMetaData valuesMd = values.getMetaData();
+    
                 if (offset == 0) {
-                    // If the table does not exist, create it
+                    // Create table on first batch
                     StringBuilder sqlCreate = new StringBuilder("CREATE TABLE " + t + "(");
-
-                    // Create the table structure
                     for (int i = 1; i <= valuesMd.getColumnCount(); i++) {
-                        String columnName = valuesMd.getColumnName(i);
-                        String columnType = valuesMd.getColumnTypeName(i);
-                        int columnSize = valuesMd.getColumnDisplaySize(i);
-                        boolean isNullable = valuesMd.isNullable(i) == ResultSetMetaData.columnNullable;
-                    
-                        // Append column name and type
-                        sqlCreate.append(columnName + " " + columnType);
-                    
-                        // Append column size if applicable (e.g., VARCHAR)
-                        if (columnSize > 0 && (columnType.equalsIgnoreCase("VARCHAR") || columnType.equalsIgnoreCase("CHAR"))) {
+                        sqlCreate.append(valuesMd.getColumnName(i) + " " + valuesMd.getColumnTypeName(i));
+                        int columnSize = valuesMd.getPrecision(i);
+                        if (columnSize > 0 && (valuesMd.getColumnTypeName(i).matches("VARCHAR|CHAR"))) {
                             sqlCreate.append("(" + columnSize + ")");
                         }
-                    
-                        // Append NULL/NOT NULL
-                        sqlCreate.append(isNullable ? " NULL" : " NOT NULL");
-                    
-                        // Append comma if not the last column
+                        sqlCreate.append(valuesMd.isNullable(i) == ResultSetMetaData.columnNullable ? " NULL" : " NOT NULL");
                         if (i < valuesMd.getColumnCount()) {
                             sqlCreate.append(", ");
                         }
                     }
-
-                    // Remove the last comma and close the statement
                     sqlCreate.append(");");
                     conn_output.createStatement().executeUpdate(sqlCreate.toString());
                 }
-            
-                // Insert the data into the table
-                StringBuilder sqlInsert = new StringBuilder("INSERT INTO " + t + " VALUES ");
+    
+                // Prepare insert statement
+                StringBuilder insertSql = new StringBuilder("INSERT INTO " + t + " VALUES (");
+                for (int i = 1; i <= valuesMd.getColumnCount(); i++) {
+                    insertSql.append("?");
+                    if (i < valuesMd.getColumnCount()) {
+                        insertSql.append(", ");
+                    }
+                }
+                insertSql.append(")");
+                PreparedStatement insertStmt = conn_output.prepareStatement(insertSql.toString());
+    
                 int batchCount = 0;
-
                 while (values.next()) {
-                    sqlInsert.append("(");
                     for (int i = 1; i <= valuesMd.getColumnCount(); i++) {
                         Object value = values.getObject(i);
-
-                        if (value == null) {
-                            sqlInsert.append("NULL");
-                        } else if (value instanceof Timestamp || value instanceof LocalDateTime) {
-                            sqlInsert.append("'" + value.toString() + "'");
-                        } else if (value instanceof Geometry) {
+                        if (value instanceof Geometry) {
                             org.locationtech.jts.geom.Geometry geometryValue = (org.locationtech.jts.geom.Geometry) value;
                             WKTWriter wktWriter = new WKTWriter();
-                            String geometryString = wktWriter.write(geometryValue); // Convert Geometry to string
-                            sqlInsert.append("'" + geometryString + "'");
-                        } else if (value instanceof Long) {
-                            sqlInsert.append(value); // No need to wrap in single quotes for Long
+                            String geometryString = wktWriter.write(geometryValue);
+                            insertStmt.setString(i, "ST_GeomFromText('" + geometryString + "')");
                         } else {
-                            // For other types, simply escape special characters
-                            sqlInsert.append("'" + value.toString().replaceAll("[, ' \"]", "") + "'");
-                        }
-                        if (i < valuesMd.getColumnCount()) {
-                            sqlInsert.append(", ");
+                            insertStmt.setObject(i, value);
                         }
                     }
-                    sqlInsert.append("), ");
+                    insertStmt.addBatch();
+                    if (++batchCount % batchSize == 0) {
+                        insertStmt.executeBatch();
+                    }
                     totalEntries++;
-                    batchCount++;
                 }
-
-                // Remove the last comma after check that there is a trailing comma
-                if (sqlInsert.toString().endsWith(", ")) {
-                    sqlInsert.delete(sqlInsert.length() - 2, sqlInsert.length());
-                    try {
-                        conn_output.createStatement().executeUpdate(sqlInsert.toString());
-                    } catch (SQLException e) {
-                        // e.printStackTrace();
-                    }
-                }
+                insertStmt.executeBatch(); // Execute any remaining batches
     
-
-                // Check if there are more entries
                 moreData = batchCount == batchSize;
                 offset += batchSize;
+                insertStmt.close();
             }
+    
             outputConn.connectionPool.free(conn_output);
             inputConn.connectionPool.free(conn_input);
-            System.out.println("Table " + t + " copied: " + totalEntries);
+            System.out.println("Table " + t + " copied: " + totalEntries + " entries.");
         } catch (SQLException e) {
             e.printStackTrace();
-        } finally {
         }
     }
+    
 
     public static void drop_tables_output(String t) {
         try {
