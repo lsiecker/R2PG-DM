@@ -29,8 +29,6 @@ hs_err_pid*
 *.ini
 
 # CSVs
-edges.csv
-nodes.csv
-properties.csv
+exports/*
 java-project/lib/*
 java-project/.factorypath
