@@ -13,6 +13,9 @@ import java.util.concurrent.TimeUnit;
 
 import com.opencsv.CSVWriter;
 
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonGenerator;
+
 /**
  * Exports data to file
  */
@@ -46,102 +49,112 @@ class Export {
         }
     }
 
-    /**
-     * Generate combined JSON and N-Triples for nodes and edges with properties
-     */
-
     static ExecutorService executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
     static InputConnection outputConn;
 
-    static void generateCombinedGraph(String path, InputConnection conn) {
+    /**
+     * Generate JSON for nodes and edges with properties
+     */
+    static void generateJSONGraph(String path, InputConnection conn) {
         outputConn = conn;
-        String nTriplesFilePath = path.concat("\\combined.nt");
-        try (FileWriter nTriplesWriter = new FileWriter(nTriplesFilePath)) {
-            // Handle nodes and edges in parallel
-            executor.execute(() -> processEntities("nodes", nTriplesWriter));
-            executor.execute(() -> processEntities("edges", nTriplesWriter));
+        String jsonFilePath = path.concat("\\combined.json");
+        JsonFactory jsonFactory = new JsonFactory();
 
-            executor.shutdown();
-            executor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
-        } catch (IOException | InterruptedException e) {
+        try (FileWriter fileWriter = new FileWriter(jsonFilePath);
+                JsonGenerator jg = jsonFactory.createGenerator(fileWriter)) {
+            processEntities("nodes", jg);
+            processEntities("edges", jg);
+
+        } catch (IOException e) {
             e.printStackTrace();
+        } finally {
+            executor.shutdown();
+            try {
+                executor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
     }
 
-    static void processEntities(String type, FileWriter writer) {
+    static void processEntities(String type, JsonGenerator jg) {
         try (Connection conn = outputConn.connectionPool.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet entities = (type.equals("nodes")) ? stmt.executeQuery("SELECT * FROM node")
-                                                         : stmt.executeQuery("SELECT * FROM edge")) {
-    
+                Statement stmt = conn.createStatement();
+                ResultSet entities = (type.equals("nodes")) ? stmt.executeQuery("SELECT * FROM node")
+                        : stmt.executeQuery("SELECT * FROM edge")) {
+
             while (entities.next()) {
-                String entityId = entities.getString("id");
                 if (type.equals("nodes")) {
-                    writeEntity(entities, writer, entityId, conn);
+                    writeEntity(entities, jg, entities.getString("id"), conn);
                 } else {
-                    writeRelationship(entities, writer, entityId, conn);
+                    writeRelationship(entities, jg, entities.getString("id"), conn);
                 }
             }
         } catch (SQLException | IOException e) {
             e.printStackTrace();
         }
     }
-    
 
-    static void writeEntity(ResultSet entity, FileWriter writer, String entityId, Connection conn) throws SQLException, IOException {
-        String label = escapeNTriples(entity.getString("label"));
-        synchronized (writer) {
-            // Writing node
-            writer.write(String.format("<http://example.com/node/%s> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.com/%s> .\n",
-                    entityId, label));
-        }
-        processProperties(entityId, writer, "node", conn);
+    static void writeEntity(ResultSet entity, JsonGenerator jg, String entityId, Connection conn)
+            throws SQLException, IOException {
+        jg.writeStartObject();
+        jg.writeStringField("type", "node");
+        jg.writeStringField("id", entityId);
+        jg.writeArrayFieldStart("labels");
+        jg.writeString(entity.getString("label"));
+        jg.writeEndArray();
+        jg.writeFieldName("properties");
+        jg.writeStartObject();
+        processProperties(entityId, jg, "node", conn);
+        jg.writeEndObject();
+        jg.writeEndObject();
+        jg.writeRaw("\n");
+        jg.flush();
     }
-    
 
-    // This set will track which edge IDs have been processed
-    static HashSet<String> processedEdges = new HashSet<>();
+    static void writeRelationship(ResultSet relationship, JsonGenerator jg, String relId, Connection conn)
+            throws SQLException, IOException {
+        jg.writeStartObject();
+        jg.writeStringField("type", "relationship");
+        jg.writeStringField("id", relId);
 
-    static void writeRelationship(ResultSet relationship, FileWriter writer, String relId, Connection conn) throws SQLException, IOException {
-        if (!processedEdges.contains(relId)) {
-            processedEdges.add(relId);  // Add the edge ID to the set to mark it as processed
+        // Writing the 'start' node information
+        jg.writeObjectFieldStart("start");
+        jg.writeStringField("id", relationship.getString("srcid"));
+        jg.writeArrayFieldStart("labels");
+        // Here you would add labels if they are available for the source node
+        jg.writeEndArray();
+        jg.writeEndObject();
 
-            String startId = relationship.getString("srcid");
-            String endId = relationship.getString("tgtid");
-            String label = escapeNTriples(relationship.getString("label"));
+        // Writing the 'end' node information
+        jg.writeObjectFieldStart("end");
+        jg.writeStringField("id", relationship.getString("tgtid"));
+        jg.writeArrayFieldStart("labels");
+        // Here you would add labels if they are available for the target node
+        jg.writeEndArray();
+        jg.writeEndObject();
 
-            synchronized (writer) {
-                // Writing relationship
-                writer.write(String.format("<http://example.com/node/%s> <http://example.com/edge/%s> '%s' <http://example.com/node/%s> .\n",
-                        startId, label, relId, endId));
-                // writer.write(String.format("<http://example.com/edge/%s> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.com/%s> .\n",
-                        // label, relId, label));
-            }
+        // Relationship label
+        jg.writeStringField("label", relationship.getString("label"));
 
-            // Process properties only once per edge
-            processProperties(relId, writer, "edge", conn);
-        }
+        // Writing properties associated with the relationship
+        jg.writeFieldName("properties");
+        jg.writeStartObject();
+        processProperties(relId, jg, "edge", conn);
+        jg.writeEndObject();
+
+        jg.writeEndObject();
+        jg.writeRaw('\n'); 
+        jg.flush();
     }
-    
-    static void processProperties(String entityId, FileWriter writer, String type, Connection conn)
+
+    static void processProperties(String entityId, JsonGenerator jg, String type, Connection conn)
             throws SQLException, IOException {
         try (Statement stmt = conn.createStatement();
                 ResultSet properties = stmt.executeQuery("SELECT * FROM property WHERE id = '" + entityId + "'")) {
             while (properties.next()) {
-                String propertyKey = properties.getString("pkey");
-                String propertyValue = escapeNTriples(properties.getString("pvalue"));
-                synchronized (writer) {
-                    writer.write(String.format("<http://example.com/%s/%s> <http://example.com/%s> \"%s\" .\n",
-                            type, entityId, propertyKey, propertyValue));
-                }
+                jg.writeStringField(properties.getString("pkey"), properties.getString("pvalue"));
             }
         }
     }
-
-    private static String escapeNTriples(String value) {
-        if (value == null)
-            return "";
-        return value.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n");
-    }
-
 }

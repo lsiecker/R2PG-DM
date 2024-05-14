@@ -95,7 +95,8 @@ public class App {
             // Generate CSV files
             System.out.println("Creating CSV files for Nodes, Properties and Edges");
             Export.generateCSVs("exports");
-            Export.generateCombinedGraph("exports", outputConn);
+            // Export.generateCombinedGraph("exports", outputConn);
+            Export.generateJSONGraph("exports", outputConn);
             System.out.println("CSV files generated");
 
         } catch (IOException e) {
