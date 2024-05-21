@@ -27,10 +27,12 @@ services:
       - postgresdb-data:/var/lib/postgresql/data
 
   avantgraph:
-    image: ghcr.io/avantlab/avantgraph:release-2024-01-31
+    image: lsiecker/avantgraph:latest
     ports:
       - "7689:7689"
     privileged: true
+    ulimits: 
+      memlock: "1024000"
     command: ["ag-server", "--listen", "0.0.0.0:7689", "output_graph/"]
     restart: "on-failure"
     volumes:
