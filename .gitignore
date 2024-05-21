@@ -1,6 +1,7 @@
 **/.idea
 **/target
 *.iml
+.env
 # Compiled class file
 *.class
 
@@ -30,5 +31,4 @@ hs_err_pid*
 
 # CSVs
 exports/*
-java-project/lib/*
-java-project/.factorypath
+*/.factorypath
