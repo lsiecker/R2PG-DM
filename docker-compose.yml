@@ -11,8 +11,8 @@ services:
     ports:
       - "3307:3307"
     environment:  # MySQL requires environment variables to set passwords, etc.
-      MYSQL_ROOT_PASSWORD: password
-      MYSQL_DATABASE: target
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
     volumes:
       - mysql-data:/var/lib/mysql
 
@@ -21,10 +21,10 @@ services:
     ports:
       - "5432:5432"
     environment:  # Postgres also requires environment variables for initial setup
-      POSTGRES_DB: target
-      POSTGRES_PASSWORD: password
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - postgresdb-data:/var/lib/postgresql/data
+      - postgresdb-data:/var/lib/postgresql
 
   avantgraph:
     image: lsiecker/avantgraph:latest
@@ -36,7 +36,7 @@ services:
     command: ["ag-server", "--listen", "0.0.0.0:7689", "output_graph/"]
     restart: "on-failure"
     volumes:
-      - avantgraph-data:/home/me
+      - avantgraph-data:/var/lib/avantgraph
 
 volumes:
   mysql-data:
