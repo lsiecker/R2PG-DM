@@ -20,6 +20,14 @@ class Config {
     @Setter
     String connectionString; // JDBC connection string
 
+    @Getter
+    @Setter
+    Boolean tables;
+
+    @Getter
+    @Setter
+    Boolean views;
+
     Config(String connString, String driver, String db) {
         this.driver = driver;
         this.database = db;
@@ -30,5 +38,10 @@ class Config {
         this.driver = null;
         this.database = null;
         this.connectionString = connString;
+    }
+
+    Config(Boolean tables, Boolean views) {
+        this.tables = tables;
+        this.views = views;
     }
 }

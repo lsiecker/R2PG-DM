@@ -90,7 +90,7 @@ public class InputConnection {
         List<String> tables = new ArrayList<>();
 
         try {
-            ResultSet rs = _metaData.getTables(_schema, null, "%", TYPES);
+            ResultSet rs = _metaData.getTables(_schema, _schema, "%", TYPES);
             while (rs.next()) {
                 String name = rs.getString(3);
                 String[] forbidden = {"node", "property", "edge", "node_c1", "node_c2", "edge_c1", "edge_c2", "property_c1", "property_c2"};
@@ -98,6 +98,28 @@ public class InputConnection {
                     tables.add(name);
                 }
             }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return tables;
+    }
+
+    List<String> retrieveViewNames() {
+        List<String> tables = new ArrayList<>();
+
+        try {
+            Connection conn = connectionPool.getConnection();
+            String sql = "USE " + _schema + " SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.VIEWS";
+            PreparedStatement stmt = conn.prepareStatement(sql, ResultSet.TYPE_FORWARD_ONLY,
+                    ResultSet.CONCUR_READ_ONLY);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                String schema = rs.getString(1);
+                String name = rs.getString(2);
+                tables.add(schema + "." + name);
+            }
+            connectionPool.free(conn);
         } catch (SQLException e) {
             e.printStackTrace();
         }
