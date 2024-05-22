@@ -386,13 +386,30 @@ public class OutputConnection {
                 while (values.next()) {
                     for (int i = 1; i <= valuesMd.getColumnCount(); i++) {
                         Object value = values.getObject(i);
-                        if (value instanceof Geometry) {
-                            org.locationtech.jts.geom.Geometry geometryValue = (org.locationtech.jts.geom.Geometry) value;
-                            WKTWriter wktWriter = new WKTWriter();
-                            String geometryString = wktWriter.write(geometryValue);
-                            insertStmt.setString(i, "ST_GeomFromText('" + geometryString + "')");
-                        } else {
-                            insertStmt.setObject(i, value);
+                        try {
+                            if (valuesMd.getColumnTypeName(i).equalsIgnoreCase("YEAR") && value != null) {
+                                // Convert the value to a compatible format if it is not null
+                                if (value instanceof Date) {
+                                    insertStmt.setInt(i, ((Date) value).toLocalDate().getYear());
+                                } else if (value instanceof Integer) {
+                                    insertStmt.setInt(i, (Integer) value);
+                                } else if (value instanceof String) {
+                                    insertStmt.setInt(i, Integer.parseInt((String) value));
+                                } else {
+                                    // Handle other potential formats if necessary
+                                    insertStmt.setInt(i, Integer.parseInt(value.toString()));
+                                }
+                            } else if (value instanceof Geometry) {
+                                org.locationtech.jts.geom.Geometry geometryValue = (org.locationtech.jts.geom.Geometry) value;
+                                WKTWriter wktWriter = new WKTWriter();
+                                String geometryString = wktWriter.write(geometryValue);
+                                insertStmt.setString(i, "ST_GeomFromText('" + geometryString + "')");
+                            } else {
+                                insertStmt.setObject(i, value);
+                            }
+                        } catch (SQLException e) {
+                            System.err.println("Error setting value for column: " + valuesMd.getColumnName(i) + " with value: " + value);
+                            throw e;
                         }
                     }
                     insertStmt.addBatch();
@@ -415,6 +432,7 @@ public class OutputConnection {
             e.printStackTrace();
         }
     }
+    
     
 
     public static void drop_tables_output(String t) {
