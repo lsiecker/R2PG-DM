@@ -718,4 +718,8 @@ public class InputConnection {
         }
     }
 
+    public String getSchema() {
+        return _schema;    
+    }
+
 }

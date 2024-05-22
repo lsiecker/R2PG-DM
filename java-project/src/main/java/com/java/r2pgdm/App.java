@@ -48,7 +48,7 @@ public class App {
             // Establish the database connection pool
             inputConn = new InputConnection(input.connectionString, input.database, input.driver);
             outputConn = new InputConnection(output.connectionString, output.database, output.driver);
-            new OutputConnection(outputConn);
+            new OutputConnection(outputConn, input.driver);
 
             List<String> tables = new ArrayList<>();
 
@@ -72,6 +72,7 @@ public class App {
             // Copy the necessary tables from the input to the output database
             all_tables.forEach(t -> tFinished.add(executorService.submit(() -> OutputConnection.copyTable(inputConn, outputConn, t))));
             awaitTableCompletion(tFinished);
+
 
             // Create nodes and their properties
             tables.forEach(t -> tFinished.add(executorService.submit(() -> {

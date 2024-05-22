@@ -18,15 +18,17 @@ public class OutputConnection {
 
     private static Connection conn;
     private static ConnectionPool connectionPool;
+    private static String driver;
 
     /**
      * Since output is written to the input connection we reuse the input connection
      * @param input Connection to the input database
      */
-    public OutputConnection(InputConnection input) {
+    public OutputConnection(InputConnection input, String driver2) {
         try {
             conn = input.connectionPool.getConnection();
             connectionPool = input.connectionPool;
+            driver = driver2;
         } catch (SQLException e) {
             e.printStackTrace();
         } finally {
@@ -336,43 +338,114 @@ public class OutputConnection {
             Connection conn_input = inputConn.connectionPool.getConnection();
             Connection conn_output = outputConn.connectionPool.getConnection();
     
+            // Determine the schema and object name
+            String schema = null;
+            String tableName = t;
+            if (t.contains(".")) {
+                String[] parts = t.split("\\.");
+                schema = parts[0];
+                tableName = parts[1];
+            }
+    
+            // Check if the object is a view
+            boolean isView = false;
+            ResultSet rs = conn_input.getMetaData().getTables(null, schema, tableName, new String[] { "TABLE", "VIEW" });
+            while (rs.next()) {
+                if (rs.getString("TABLE_NAME").equalsIgnoreCase(tableName)) {
+                    isView = rs.getString("TABLE_TYPE").equalsIgnoreCase("VIEW");
+                    break;
+                }
+            }
+
+            // Drop existing table or view
+            conn_output.createStatement().executeUpdate("DROP TABLE IF EXISTS " + tableName + ";");
+
             // Setting up SQL to fetch data
             String fetchSql = "SELECT * FROM " + t + " LIMIT ? OFFSET ?;";
-            PreparedStatement fetchStmt = conn_input.prepareStatement(fetchSql);
-    
-            // Check and drop existing table
-            conn_output.createStatement().executeUpdate("DROP TABLE IF EXISTS " + t + ";");
+            if (t.contains(".") && (driver.equals("com.microsoft.sqlserver.jdbc.SQLServerDriver") || driver.equals("mssql-jdbc"))){
+                fetchSql = "SELECT * FROM " + inputConn.getSchema() + "." + schema + "." + tableName + " ORDER BY (SELECT NULL) OFFSET ? ROWS FETCH NEXT ? ROWS ONLY;";
+            } else if (driver.equals("com.microsoft.sqlserver.jdbc.SQLServerDriver") || driver.equals("mssql-jdbc")) {
+                fetchSql = "SELECT * FROM " + inputConn.getSchema() + "." + inputConn.getSchema() + "." + tableName + " ORDER BY (SELECT NULL) OFFSET ? ROWS FETCH NEXT ? ROWS ONLY;";
+            }
+            PreparedStatement fetchStmt = conn_input.prepareStatement(conn_input.nativeSQL(fetchSql));
     
             int offset = 0;
             boolean moreData = true;
             int batchSize = 100000;
     
             while (moreData) {
-                fetchStmt.setInt(1, batchSize);
-                fetchStmt.setInt(2, offset);
+                if (driver.equals("com.microsoft.sqlserver.jdbc.SQLServerDriver") || driver.equals("mssql-jdbc")) {
+                    fetchStmt.setInt(1, offset);
+                    fetchStmt.setInt(2, batchSize);
+                } else {
+                    fetchStmt.setInt(1, batchSize);
+                    fetchStmt.setInt(2, offset);
+                }
                 ResultSet values = fetchStmt.executeQuery();
                 ResultSetMetaData valuesMd = values.getMetaData();
     
                 if (offset == 0) {
                     // Create table on first batch
-                    StringBuilder sqlCreate = new StringBuilder("CREATE TABLE " + t + "(");
+                    StringBuilder sqlCreate = new StringBuilder("CREATE TABLE " + tableName + "(");
                     for (int i = 1; i <= valuesMd.getColumnCount(); i++) {
-                        sqlCreate.append(valuesMd.getColumnName(i) + " " + valuesMd.getColumnTypeName(i));
+                        String columnName = valuesMd.getColumnName(i);
+                        String columnType = valuesMd.getColumnTypeName(i).toLowerCase();
                         int columnSize = valuesMd.getPrecision(i);
-                        if (columnSize > 0 && (valuesMd.getColumnTypeName(i).matches("VARCHAR|CHAR"))) {
-                            sqlCreate.append("(" + columnSize + ")");
+                        int decimalDigits = valuesMd.getScale(i);
+
+                        if (columnName.contains(" ")) {
+                            columnName = "[" + columnName + "]";
                         }
-                        sqlCreate.append(valuesMd.isNullable(i) == ResultSetMetaData.columnNullable ? " NULL" : " NOT NULL");
+                    
+                        sqlCreate.append(columnName).append(" ").append(columnType);
+                    
+                        // Add size/precision/scale based on the column type
+                        if (columnType.matches("varchar|char|nvarchar|nchar")) {
+                            if (columnSize > 0) {
+                                sqlCreate.append("(").append(columnSize).append(")");
+                            }
+                        } else if (columnType.matches("decimal|numeric")) {
+                            if (columnSize > 0 && decimalDigits >= 0) {
+                                sqlCreate.append("(").append(columnSize).append(", ").append(decimalDigits).append(")");
+                            }
+                        } else if (columnType.contains("mediumint")) {
+                            // replace medium int with int
+                            sqlCreate = new StringBuilder(sqlCreate.toString().replace("mediumint", "int"));
+                        } else if (columnType.contains("timestamp")) {
+                            // replace timestamp with datetime
+                            sqlCreate = new StringBuilder(sqlCreate.toString().replace("timestamp", "datetime"));
+                        }
+
+                        // remove unsigned from query
+                        if (columnType.contains("unsigned")) {
+                            sqlCreate = new StringBuilder(sqlCreate.toString().replace("unsigned", ""));
+                        }
+                    
+                        // Handle nullability
+                        if (valuesMd.isNullable(i) == ResultSetMetaData.columnNullable) {
+                            sqlCreate.append(" NULL");
+                        } else {
+                            sqlCreate.append(" NOT NULL");
+                        }
+                    
                         if (i < valuesMd.getColumnCount()) {
                             sqlCreate.append(", ");
                         }
                     }
                     sqlCreate.append(");");
-                    conn_output.createStatement().executeUpdate(sqlCreate.toString());
+                    // System.out.println(sqlCreate.toString());
+                    // System.out.println(conn_output.nativeSQL(sqlCreate.toString()));
+                    conn_output.createStatement().executeUpdate(conn_output.nativeSQL(sqlCreate.toString()));
+                }
+
+                // If the rs is empty, skip the insert
+                if (!values.next()) {
+                    moreData = false;
+                    break;
                 }
     
                 // Prepare insert statement
-                StringBuilder insertSql = new StringBuilder("INSERT INTO " + t + " VALUES (");
+                StringBuilder insertSql = new StringBuilder("INSERT INTO " + tableName + " VALUES (");
                 for (int i = 1; i <= valuesMd.getColumnCount(); i++) {
                     insertSql.append("?");
                     if (i < valuesMd.getColumnCount()) {
@@ -429,10 +502,10 @@ public class OutputConnection {
             inputConn.connectionPool.free(conn_input);
             System.out.println("Table " + t + " copied: " + totalEntries + " entries.");
         } catch (SQLException e) {
+            System.out.println("Error copying table " + t);
             e.printStackTrace();
         }
     }
-    
     
 
     public static void drop_tables_output(String t) {

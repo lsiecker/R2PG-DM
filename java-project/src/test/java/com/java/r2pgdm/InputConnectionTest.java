@@ -53,7 +53,7 @@ public class InputConnectionTest {
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        new OutputConnection(input);
+        new OutputConnection(input, "mysql");
     }
 
     @After

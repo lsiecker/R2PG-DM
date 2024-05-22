@@ -28,7 +28,7 @@ public class OutputConnectionTest {
             e.printStackTrace();
         }
         input =  new InputConnection("jdbc:mysql://localhost:3306/world?user=root&password=password", "world", "mysql");
-        output = new OutputConnection(input);
+        output = new OutputConnection(input, "sqlite");
         try {
             conn = input.connectionPool.getConnection();
         } catch (SQLException e) {
