@@ -10,7 +10,6 @@ import com.java.r2pgdm.graph.Edge;
 import com.java.r2pgdm.graph.Node;
 import com.java.r2pgdm.graph.Property;
 import com.microsoft.sqlserver.jdbc.Geography;
-import com.microsoft.sqlserver.jdbc.Geometry;
 
 /**
  * Contains functionality regarding output to the input database
@@ -153,13 +152,10 @@ public class OutputConnection {
 
     static void createEdges(InputConnection inputConn, InputConnection outputconn, String t) {
         List<CompositeForeignKey> fks = inputConn.retrieveCompositeForeignKeys(t);
-        // System.out.println(fks.size() + " fks where found in table " + t);
         fks.forEach(fk -> outputconn.insertEdges(fk, t));
     }
 
     static void createEdgesAndProperties(InputConnection inputConn, String k, List<CompositeForeignKey> v) {
-        // System.out.println("Composite Foreign Key in this table:" + k.toString() + "
-        // | " + v.toString());
         // There are two items in v, for which both target items need to be connected,
         // with the properties in the edge.
 
@@ -408,17 +404,6 @@ public class OutputConnection {
 
             }
 
-            // Check if the object is a view
-            boolean isView = false;
-            ResultSet rs = conn_input.getMetaData().getTables(null, schema, tableName,
-                    new String[] { "TABLE", "VIEW" });
-            while (rs.next()) {
-                if (rs.getString("TABLE_NAME").equalsIgnoreCase(tableName)) {
-                    isView = rs.getString("TABLE_TYPE").equalsIgnoreCase("VIEW");
-                    break;
-                }
-            }
-
             // Drop existing table or view
             conn_output.createStatement().executeUpdate("DROP TABLE IF EXISTS " + tableName + ";");
 
@@ -507,8 +492,6 @@ public class OutputConnection {
                         }
                     }
                     sqlCreate.append(");");
-                    // System.out.println(sqlCreate.toString());
-                    // System.out.println(conn_output.nativeSQL(sqlCreate.toString()));
                     conn_output.createStatement().executeUpdate(conn_output.nativeSQL(sqlCreate.toString()));
                 }
 
@@ -581,7 +564,7 @@ public class OutputConnection {
 
             outputConn.connectionPool.free(conn_output);
             inputConn.connectionPool.free(conn_input);
-            System.out.println("Table " + t + " copied: " + totalEntries + " entries.");
+            System.out.println("Table " + t + ": " + totalEntries + " entries copied.");
         } catch (SQLException e) {
             System.out.println("Error copying table " + t);
             e.printStackTrace();
