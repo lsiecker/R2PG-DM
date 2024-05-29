@@ -40,18 +40,28 @@ public class App {
         try {
             Long start = System.currentTimeMillis();
             // Read the configuration from the .ini file.
-            Wini ini = new Wini(new File("configs/mysql/sakila.ini"));
+            Wini ini = new Wini(new File("configs/mssql/sakila.ini"));
             Config input = GetConfiguration(ini.get("input"));
             Config output = GetConfiguration(ini.get("output"));
+            Config mapping = GetConfiguration(ini.get("mapping"));
 
             // Establish the database connection pool
             inputConn = new InputConnection(input.connectionString, input.database, input.driver);
             outputConn = new InputConnection(output.connectionString, output.database, output.driver);
-            new OutputConnection(outputConn);
+            new OutputConnection(outputConn, input.driver);
 
-            // Retrieve the table names from the input database
-            List<String> all_tables = inputConn.retrieveTableNames();
-            List<String> tables = new ArrayList<>(all_tables);
+            List<String> tables = new ArrayList<>();
+
+            if (mapping.tables) {
+                tables.addAll(inputConn.retrieveTableNames());
+            }
+
+            if (mapping.views) {
+                tables.addAll(inputConn.retrieveViewNames());
+            }
+
+            List<String> all_tables = new ArrayList<>(tables);
+            
             Map<String, List<CompositeForeignKey>> joinTables = inputConn.retrieveJoinTableNames(tables);
             tables.removeAll(joinTables.keySet());
 
@@ -62,6 +72,7 @@ public class App {
             // Copy the necessary tables from the input to the output database
             all_tables.forEach(t -> tFinished.add(executorService.submit(() -> OutputConnection.copyTable(inputConn, outputConn, t))));
             awaitTableCompletion(tFinished);
+
 
             // Create nodes and their properties
             tables.forEach(t -> tFinished.add(executorService.submit(() -> {
@@ -135,6 +146,8 @@ public class App {
             return new Config(section.get("connectionString"), section.get("driver"), section.get("database"));
         } else if (section.getName().equals("output")) {
             return new Config(section.get("connectionString"), section.get("driver"), section.get("database"));
+        } else if (section.getName().equals("mapping")){
+            return new Config(Boolean.parseBoolean(section.get("tables")), Boolean.parseBoolean(section.get("views")));
         }
         return new Config(section.get("connectionString"));
     }
