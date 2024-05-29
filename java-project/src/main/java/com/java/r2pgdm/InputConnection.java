@@ -20,7 +20,7 @@ public class InputConnection {
     private char _Quoting = '`';
     private static final String[] TYPES = new String[]{"TABLE"};
     private DatabaseMetaData _metaData;
-    private String _schema, driver;
+    private String _schema, driver, dbType;
 
     // Connection conn;
     ConnectionPool connectionPool;
@@ -37,6 +37,18 @@ public class InputConnection {
     public InputConnection(String connectionString, String schema, String driver) {
         this._schema = schema;
         this.driver = driver;
+        if (driver.contains("mysql")) {
+            this.dbType = "mysql";
+        } else if (driver.contains("sqlserver") || driver.contains("mssql")) {
+            this.dbType = "mssql";
+        } else if (driver.contains("postgresql")) {
+            this.dbType = "postgresql";
+        } else {
+            this.dbType = "unknown";
+        }
+
+        System.out.println("Connecting to " + dbType + " database " + schema + " using driver " + driver);
+
         if (!driver.equals("mysql")) {
             this._Quoting = '"';
         }
@@ -110,7 +122,7 @@ public class InputConnection {
 
         try {
             Connection conn = connectionPool.getConnection();
-            String sql = "USE " + _schema + " SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.VIEWS";
+            String sql = getViewNamesSQL();
             PreparedStatement stmt = conn.prepareStatement(sql, ResultSet.TYPE_FORWARD_ONLY,
                     ResultSet.CONCUR_READ_ONLY);
             ResultSet rs = stmt.executeQuery();
@@ -126,6 +138,20 @@ public class InputConnection {
 
         return tables;
     }
+
+    private String getViewNamesSQL() {
+        switch (dbType.toLowerCase()) {
+            case "mssql":
+                return "SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_CATALOG = DB_NAME() AND TABLE_SCHEMA NOT IN ('sys', 'INFORMATION_SCHEMA')";
+            case "mysql":
+                return "SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_SCHEMA = DATABASE()";
+            case "postgresql":
+                return "SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.VIEWS WHERE table_catalog = current_database() AND table_schema NOT IN ('pg_catalog', 'information_schema')";
+            default:
+                throw new IllegalArgumentException("Unsupported database type: " + dbType);
+        }
+    }
+    
 
     /**
      * Calculates all composite foreign keys in the input database for the given table
@@ -179,6 +205,11 @@ public class InputConnection {
      */
     private List<String> getColumns(String tableName) {
         List<String> list = new ArrayList<>();
+
+        if (tableName.contains(".")) {
+            String[] parts = tableName.split("\\.");
+            tableName = parts[1];
+        }
 
         try {
             ResultSet rs = _metaData.getColumns(_schema, null, tableName, null);
@@ -255,6 +286,10 @@ public class InputConnection {
      * @param tableName     Name of table in the input database
      */
     void createNodesAndProperties(String tableName) throws SQLException {
+        if (tableName.contains(".")) {
+            String[] parts = tableName.split("\\.");
+            tableName = parts[1];
+        }
         Connection conn = connectionPool.getConnection();
         int row_count = getRowCount(conn, tableName);
     
@@ -284,6 +319,7 @@ public class InputConnection {
     
             while (offset < row_count) {
                 final int currentOffset = offset;
+                final String currentTableName = tableName;
     
                 Future<Integer> future = executorService.submit(() -> {
                     Connection connThread = connectionPool.getConnection();
@@ -298,7 +334,7 @@ public class InputConnection {
                     ResultSetMetaData valuesMd = values.getMetaData();
     
                     // Process the Nodes and Properties in the current batch
-                    int rowCount = batchProcessNodes(values, valuesMd, tableName);
+                    int rowCount = batchProcessNodes(values, valuesMd, currentTableName);
                     values.close();
                     connectionPool.free(connThread);
                     stmt.close();
@@ -390,7 +426,7 @@ public class InputConnection {
      * @return      Partial query
      */
     private String joinableColumnsQuery(CompositeForeignKey cfk) {
-        String sqlSel = "joinableColumns".concat(cfk.targetTable).concat(" as (SELECT DISTINCT ");
+        String sqlSel = "joinableColumns".concat(cfk.targetTable).concat(" AS (SELECT DISTINCT ");
         String sqlWhe = " ON ";
 
         for (int i = 0; i < cfk.foreignKeys.size(); i++) {
@@ -419,17 +455,17 @@ public class InputConnection {
      * @return      Partial query
      */
     private String sourceNodeQuery(CompositeForeignKey cfk) {
-        String sql = "sourceNodes" + cfk.targetTable + " as (SELECT n.id, p.pkey, p.pvalue FROM node n INNER JOIN property p on " +
-                "n.id = p.id AND n.label = '" + cfk.sourceTable + "' AND (";
+        String sql = "sourceNodes" + cfk.targetTable + " AS (SELECT n.id, p.pkey, " + convertToVarchar(dbType, "p.pvalue") + " AS pvalue FROM node n INNER JOIN property p ON " +
+                "n.id = p.id WHERE " + convertToVarchar(dbType, "n.label") + " = '" + cfk.sourceTable + "' AND ";
 
         for (int i = 0; i < cfk.foreignKeys.size(); i++) {
             ForeignKey fk = cfk.foreignKeys.get(i);
             if (i > 0) {
                 sql = sql.concat(" OR ");
             }
-            sql = sql.concat("p.pkey = '").concat(fk.sourceAttribute).concat("'");
+            sql = sql.concat(convertToVarchar(dbType, "p.pkey") + " = '").concat(fk.sourceAttribute).concat("'");
         }
-        sql = sql.concat(("))"));
+        sql = sql.concat((")"));
         return sql;
     }
 
@@ -441,53 +477,53 @@ public class InputConnection {
      * @return      Partial query
      */
     private String targetNodeQuery(CompositeForeignKey cfk) {
-        String sql = "targetNodes" + cfk.targetTable + " as (SELECT n.id, p.pkey, p.pvalue FROM node n INNER JOIN property p on " +
-                "n.id = p.id AND n.label = '" + cfk.targetTable + "' AND (";
+        String sql = "targetNodes" + cfk.targetTable + " AS (SELECT n.id, p.pkey, " + convertToVarchar(dbType, "p.pvalue") + " AS pvalue FROM node n INNER JOIN property p ON " +
+                "n.id = p.id WHERE " + convertToVarchar(dbType, "n.label") +" = '" + cfk.targetTable + "' AND (";
 
         for (int i = 0; i < cfk.foreignKeys.size(); i++) {
             ForeignKey fk = cfk.foreignKeys.get(i);
             if (i > 0) {
                 sql = sql.concat(" OR ");
             }
-            sql = sql.concat("p.pkey = '").concat(fk.targetAttribute).concat("'");
+            sql = sql.concat(convertToVarchar(dbType, "p.pkey") + " = '").concat(fk.targetAttribute).concat("'");
         }
         sql = sql.concat(("))"));
         return sql;
     }
 
     /**
-     * Pivots the source nodes such that each unique value of pkey becomes a column with pvalue as its value
+     * Pivots the source nodes such that each unique value of pkey becomes a column with pvalue AS its value
      *
      * @param cfk   Describes the relevant columns
      * @return      Partial query
      */
     private String pivotedSourceNodeQuery(CompositeForeignKey cfk) {
-        String sql = "pivotedSourceNodes" + cfk.targetTable + " as (SELECT id as sourceId";
+        String sql = "pivotedSourceNodes" + cfk.targetTable + " AS (SELECT id AS sourceId";
 
         for (int i = 0; i < cfk.foreignKeys.size(); i++) {
             ForeignKey fk = cfk.foreignKeys.get(i);
-            sql = sql.concat(", MAX(CASE WHEN pkey='")
-                    .concat(fk.sourceAttribute)
-                    .concat("' THEN pvalue END) ")
+            sql = sql.concat(", MAX(CASE WHEN " + convertToVarchar(dbType, "pkey") + " ='")
+                    .concat(convertToVarchar(dbType, fk.sourceAttribute))
+                    .concat("' THEN " + convertToVarchar(dbType, "pvalue") + " END) AS ")
                     .concat(fk.sourceAttribute);
         }
         return sql.concat(" FROM sourceNodes" + cfk.targetTable + " s GROUP BY s.id)");
     }
 
     /**
-     * Pivots the target nodes such that each unique value of pkey becomes a column with pvalue as its value
+     * Pivots the target nodes such that each unique value of pkey becomes a column with pvalue AS its value
      *
      * @param cfk   Describes the relevant columns
      * @return      Partial query
      */
     private String pivotedTargetNodeQuery(CompositeForeignKey cfk) {
-        String sql = "pivotedTargetNodes" + cfk.targetTable + " as (SELECT id as targetId";
+        String sql = "pivotedTargetNodes" + cfk.targetTable + " AS (SELECT id AS targetId";
 
         for (int i = 0; i < cfk.foreignKeys.size(); i++) {
             ForeignKey fk = cfk.foreignKeys.get(i);
             sql = sql.concat(", MAX(CASE WHEN pkey='")
                     .concat(fk.targetAttribute)
-                    .concat("' THEN pvalue END) ")
+                    .concat("' THEN " + convertToVarchar(dbType, "pvalue") + " END) AS ")
                     .concat(fk.targetAttribute);
         }
         return sql.concat(" FROM targetNodes" + cfk.targetTable + " s GROUP BY s.id)");
@@ -500,7 +536,7 @@ public class InputConnection {
      * @return      Partial query
      */
     private String joinedSourceNodesQuery(CompositeForeignKey cfk) {
-        String sql = "joinedSourceNodes" + cfk.targetTable + " as ( SELECT s.sourceId";
+        String sql = "joinedSourceNodes" + cfk.targetTable + " AS ( SELECT s.sourceId";
 
         for (int i = 0; i < cfk.foreignKeys.size(); i++) {
             ForeignKey fk = cfk.foreignKeys.get(i);
@@ -514,7 +550,7 @@ public class InputConnection {
             }
             sql = sql.concat("s.")
                     .concat(fk.sourceAttribute)
-                    .concat(" = j.")
+                    .concat(" = ")
                     .concat("j.")
                     .concat(fk.sourceAttribute);
         }
@@ -632,7 +668,7 @@ public class InputConnection {
         Map<String, Integer> tableMappingTarget = new HashMap<>();
         for (String tableName : tableNames) {
             List<CompositeForeignKey> fks = retrieveCompositeForeignKeys(tableName);
-        
+            
 
             // Report the join table if it has exactly 2 composite foreign keys and is never the target of a different foreign key
             if (fks.size() == 2) {
@@ -650,6 +686,19 @@ public class InputConnection {
         }
 
         return joinTableNames;
+    }
+
+    private String convertToVarchar(String dbType, String column) {
+        switch (dbType.toLowerCase()) {
+            case "mssql":
+                return " CONVERT(VARCHAR(MAX), " + column + ")";
+            case "mysql":
+                return "CAST(" + column + " AS CHAR)";
+            case "postgresql":
+                return "CAST(" + column + " AS VARCHAR)";
+            default:
+                throw new IllegalArgumentException("Unsupported database type: " + dbType);
+        }
     }
 
     void insertJoinEdges(CompositeForeignKey cfk_1, CompositeForeignKey cfk_2, String tableName) {
