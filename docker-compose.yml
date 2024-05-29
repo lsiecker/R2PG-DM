@@ -11,8 +11,8 @@ services:
     ports:
       - "3307:3307"
     environment:  # MySQL requires environment variables to set passwords, etc.
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD} # Please set this in your .env file
+      MYSQL_DATABASE: ${MYSQL_DATABASE} # Please set this in your .env file
     volumes:
       - mysql-data:/var/lib/mysql
 
@@ -21,8 +21,8 @@ services:
     ports:
       - "5432:5432"
     environment:  # Postgres also requires environment variables for initial setup
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB} # Please set this in your .env file
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD} # Please set this in your .env file
     volumes:
       - postgresdb-data:/var/lib/postgresql
 

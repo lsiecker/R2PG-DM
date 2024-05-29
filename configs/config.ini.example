@@ -1,0 +1,13 @@
+[input]
+connectionString=jdbc:DRIVER://IP_ADDRESS:PORT/DATABASE_NAME?user=USER&password=PASSWORD
+database=DATABASE_NAME
+driver=DRIVER
+
+[output]
+connectionString=jdbc:DRIVER://IP_ADDRESS:PORT/DATABASE_NAME?user=USER&password=PASSWORD
+database=DATABASE_NAME
+driver=DRIVER
+
+[mapping]
+tables=true
+views=true
