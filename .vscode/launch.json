@@ -5,12 +5,6 @@
             "name": "CodeLens (Launch) - App",
             "request": "launch",
             "mainClass": "com.java.r2pgdm.App",
-        },
-        {
-            "type": "java",
-            "name": "CodeLens (Launch) - App",
-            "request": "launch",
-            "mainClass": "com.java.r2pgdm.App",
             "projectName": "java-project",
             "vmArgs": [
                 "-Djava.library.path=${workspaceFolder}"
