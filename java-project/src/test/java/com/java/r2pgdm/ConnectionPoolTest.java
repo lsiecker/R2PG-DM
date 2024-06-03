@@ -18,7 +18,7 @@ public class ConnectionPoolTest {
     @Before
     public void setUp() {
         try {
-            connectionPool = new ConnectionPool("mysql", "jdbc:mysql://localhost:3306/world?user=root&password=password", 0, 6, true);
+            connectionPool = new ConnectionPool("sqlite", "jdbc:sqlite::memory:", 0, 6, true);
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -77,9 +77,9 @@ public class ConnectionPoolTest {
         tearDown();
         try {
             // Set up connection pool with waitIfBusy = false
-            connectionPool.setWaitIfBusy(false);
-            for (int i = 0; i < 10; i++) {
-                connectionPool.getConnection(); // Get 10 connections
+            connectionPool = new ConnectionPool("sqlite", "jdbc:sqlite::memory:", 0, 2, false);
+            for (int i = 0; i < 2; i++) {
+                connectionPool.getConnection(); // Get 2 connections
             }
             // Try to get one more connection
             connectionPool.getConnection();
