@@ -456,7 +456,7 @@ public class InputConnection {
      */
     private String sourceNodeQuery(CompositeForeignKey cfk) {
         String sql = "sourceNodes" + cfk.targetTable + " AS (SELECT n.id, p.pkey, " + convertToVarchar(dbType, "p.pvalue") + " AS pvalue FROM node n INNER JOIN property p ON " +
-                "n.id = p.id WHERE " + convertToVarchar(dbType, "n.label") + " = '" + cfk.sourceTable + "' AND ";
+                "n.id = p.id AND " + convertToVarchar(dbType, "n.label") + " = '" + cfk.sourceTable + "' AND ";
 
         for (int i = 0; i < cfk.foreignKeys.size(); i++) {
             ForeignKey fk = cfk.foreignKeys.get(i);
@@ -478,7 +478,7 @@ public class InputConnection {
      */
     private String targetNodeQuery(CompositeForeignKey cfk) {
         String sql = "targetNodes" + cfk.targetTable + " AS (SELECT n.id, p.pkey, " + convertToVarchar(dbType, "p.pvalue") + " AS pvalue FROM node n INNER JOIN property p ON " +
-                "n.id = p.id WHERE " + convertToVarchar(dbType, "n.label") +" = '" + cfk.targetTable + "' AND (";
+                "n.id = p.id AND " + convertToVarchar(dbType, "n.label") + " = '" + cfk.targetTable + "' AND (";
 
         for (int i = 0; i < cfk.foreignKeys.size(); i++) {
             ForeignKey fk = cfk.foreignKeys.get(i);
@@ -521,8 +521,8 @@ public class InputConnection {
 
         for (int i = 0; i < cfk.foreignKeys.size(); i++) {
             ForeignKey fk = cfk.foreignKeys.get(i);
-            sql = sql.concat(", MAX(CASE WHEN pkey='")
-                    .concat(fk.targetAttribute)
+            sql = sql.concat(", MAX(CASE WHEN " + convertToVarchar(dbType, "pkey") + " ='")
+                    .concat(convertToVarchar(dbType, fk.targetAttribute))
                     .concat("' THEN " + convertToVarchar(dbType, "pvalue") + " END) AS ")
                     .concat(fk.targetAttribute);
         }
@@ -535,7 +535,7 @@ public class InputConnection {
      * @param cfk   Describes the relevant columns
      * @return      Partial query
      */
-    private String joinedSourceNodesQuery(CompositeForeignKey cfk) {
+    public String joinedSourceNodesQuery(CompositeForeignKey cfk) {
         String sql = "joinedSourceNodes" + cfk.targetTable + " AS ( SELECT s.sourceId";
 
         for (int i = 0; i < cfk.foreignKeys.size(); i++) {
@@ -559,12 +559,12 @@ public class InputConnection {
 
     /**
      * Joins the joined source nodes with the target nodes, such that we have a list of source, target id pairs between
-     * wich edges need to be created
+     * which edges need to be created
      *
      * @param cfk   Describes the relevant columns
      * @return      Partial query
      */
-    private String finalEdgeJoinString(CompositeForeignKey cfk) {
+    public String finalEdgeJoinString(CompositeForeignKey cfk) {
         String sql = "SELECT s.sourceId, t.targetId FROM joinedSourceNodes" + cfk.targetTable + " s LEFT JOIN pivotedTargetNodes" + cfk.targetTable + " t ON ";
         for (int i = 0; i < cfk.foreignKeys.size(); i++) {
             ForeignKey fk = cfk.foreignKeys.get(i);
@@ -689,15 +689,10 @@ public class InputConnection {
     }
 
     private String convertToVarchar(String dbType, String column) {
-        switch (dbType.toLowerCase()) {
-            case "mssql":
-                return " CONVERT(VARCHAR(MAX), " + column + ")";
-            case "mysql":
-                return "CAST(" + column + " AS CHAR)";
-            case "postgresql":
-                return "CAST(" + column + " AS VARCHAR)";
-            default:
-                throw new IllegalArgumentException("Unsupported database type: " + dbType);
+        if (dbType.equalsIgnoreCase("mssql")) {
+            return " CONVERT(VARCHAR(MAX), " + column + ")";
+        } else {
+            return column;
         }
     }
 
