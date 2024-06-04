@@ -4,12 +4,11 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.locationtech.jts.io.WKTWriter;
-
+import com.java.r2pgdm.converter.SQLConverter;
+import com.java.r2pgdm.converter.SQLConverterFactory;
 import com.java.r2pgdm.graph.Edge;
 import com.java.r2pgdm.graph.Node;
 import com.java.r2pgdm.graph.Property;
-import com.microsoft.sqlserver.jdbc.Geography;
 
 /**
  * Contains functionality regarding output to the input database
@@ -30,6 +29,7 @@ public class OutputConnection {
             conn = input.connectionPool.getConnection();
             connectionPool = input.connectionPool;
             driver = driver2;
+
         } catch (SQLException e) {
             e.printStackTrace();
         } finally {
@@ -311,7 +311,12 @@ public class OutputConnection {
      * Calculates and prints some statistics about the generated output data
      */
     static void printStatistics() {
-        String sql = "SELECT COUNT(*) as stats_edge FROM edge UNION SELECT COUNT(*) AS stats_nodes FROM node UNION SELECT COUNT(*) AS stats_prop FROM property;";
+        String sql = "";
+        if (driver.equals("com.microsoft.sqlserver.jdbc.SQLServerDriver") || driver.equals("mssql-jdbc")) {
+            sql = "SELECT COUNT(*) as stats_edge FROM dbo.edge UNION SELECT COUNT(*) AS stats_nodes FROM dbo.node UNION SELECT COUNT(*) AS stats_prop FROM dbo.property;";
+        } else {
+            sql = "SELECT COUNT(*) as stats_edge FROM edge UNION SELECT COUNT(*) AS stats_nodes FROM node UNION SELECT COUNT(*) AS stats_prop FROM property;";
+        }
         List<String> results = new ArrayList<>();
 
         try {
@@ -413,97 +418,25 @@ public class OutputConnection {
         }
     }
 
-    private static String buildCreateTableSql(String tableName, ResultSetMetaData metaData, String driver) throws SQLException {
-        StringBuilder sqlCreate = new StringBuilder("CREATE TABLE " + tableName + "(");
-        for (int i = 1; i <= metaData.getColumnCount(); i++) {
-            String columnName = metaData.getColumnName(i);
-            String columnType = metaData.getColumnTypeName(i).toLowerCase();
-            int columnSize = metaData.getPrecision(i);
-            int decimalDigits = metaData.getScale(i);
+    private static String buildCreateTableSql(String tableName, ResultSetMetaData metaData, SQLConverter converter) throws SQLException {
+    StringBuilder sqlCreate = new StringBuilder("CREATE TABLE " + tableName + " (");
+    for (int i = 1; i <= metaData.getColumnCount(); i++) {
+        String columnDefinition = converter.convertColumnDefinition(metaData, i);
+        sqlCreate.append(columnDefinition);
 
-            if (columnName.contains(" ")) {
-                columnName = "[" + columnName + "]";
-            }
-
-            sqlCreate.append(columnName).append(" ").append(columnType);
-
-            // Add size/precision/scale based on the column type
-            if (columnType.matches("varchar|char|nvarchar|nchar")) {
-                if (columnSize > 0) {
-                    sqlCreate.append("(").append(columnSize).append(")");
-                }
-            } else if (columnType.matches("decimal|numeric")) {
-                if (columnSize > 0 && decimalDigits >= 0) {
-                    sqlCreate.append("(").append(columnSize).append(", ").append(decimalDigits).append(")");
-                }
-            } else if (columnType.contains("mediumint")) {
-                // replace medium int with int
-                sqlCreate = new StringBuilder(sqlCreate.toString().replace("mediumint", "int"));
-            } else if (columnType.contains("timestamp")) {
-                // replace timestamp with datetime
-                sqlCreate = new StringBuilder(sqlCreate.toString().replace("timestamp", "datetime"));
-            } else if (columnType.contains("year")) {
-                // replace year with int
-                sqlCreate = new StringBuilder(sqlCreate.toString().replace("year", "int"));
-            } else if (columnType.contains("blob")) {
-                // replace blob with varbinary(max) and use setBinaryStream to insert data
-                sqlCreate = new StringBuilder(sqlCreate.toString().replace("blob", "varchar(max)"));
-            } else if (columnType.contains("geometry") & (driver.equals("com.microsoft.sqlserver.jdbc.SQLServerDriver") || driver.equals("mssql-jdbc"))){
-                // replace geometry with geography
-                sqlCreate = new StringBuilder(sqlCreate.toString().replace("geometry", "geography"));
-            }
-
-            // remove unsigned from query
-            if (columnType.contains("unsigned")) {
-                sqlCreate = new StringBuilder(sqlCreate.toString().replace("unsigned", ""));
-            }
-
-            // Handle nullability
-            if (metaData.isNullable(i) == ResultSetMetaData.columnNullable) {
-                sqlCreate.append(" NULL");
-            } else {
-                sqlCreate.append(" NOT NULL");
-            }
-
-            if (i < metaData.getColumnCount()) {
-                sqlCreate.append(", ");
-            }
+        if (i < metaData.getColumnCount()) {
+            sqlCreate.append(", ");
         }
-        sqlCreate.append(");");
-        return sqlCreate.toString();
     }
+    sqlCreate.append(");");
 
-    private static void setInsertStmtParameters(PreparedStatement stmt, ResultSet values, ResultSetMetaData metaData, String driver) throws SQLException {
+    return converter.convertQuery(sqlCreate.toString());
+}
+
+
+    private static void setInsertStmtParameters(PreparedStatement stmt, ResultSet values, ResultSetMetaData metaData, SQLConverter converter) throws SQLException {
         for (int i = 1; i <= metaData.getColumnCount(); i++) {
-            Object value = values.getObject(i);
-            try {
-                if (metaData.getColumnTypeName(i).equalsIgnoreCase("YEAR") && value != null) {
-                    if (value instanceof Date) {
-                        stmt.setInt(i, ((Date) value).toLocalDate().getYear());
-                    } else if (value instanceof Integer) {
-                        stmt.setInt(i, (Integer) value);
-                    } else if (value instanceof String) {
-                        stmt.setInt(i, Integer.parseInt((String) value));
-                    } else {
-                        stmt.setInt(i, Integer.parseInt(value.toString()));
-                    }
-                } else if (value instanceof Geography) {
-                    org.locationtech.jts.geom.Geometry geometryValue = (org.locationtech.jts.geom.Geometry) value;
-                    WKTWriter wktWriter = new WKTWriter();
-                    String geometryString = wktWriter.write(geometryValue);
-                    stmt.setString(i, "ST_GeomFromText('" + geometryString + "')");
-                } else if (value instanceof Blob) {
-                    stmt.setBinaryStream(i, values.getBinaryStream(i));
-                } else if (value instanceof byte[]) {
-                    stmt.setBytes(i, (byte[]) value);
-                } else {
-                    stmt.setObject(i, value);
-                }
-            } catch (Exception e) {
-                System.err.println("Error setting value for column: " + metaData.getColumnName(i)
-                        + " with value: " + value);
-                throw e;
-            }
+            converter.setPreparedStatementParameter(stmt, values, metaData, i);
         }
     }
 
@@ -529,18 +462,20 @@ public class OutputConnection {
             // Fetch data from the input database
             PreparedStatement fetchStmt = conn_input.prepareStatement(buildFetchSql(tableName, schema, driver));
 
+        SQLConverter converter = SQLConverterFactory.getConverter(outputConn.dbType);
+
             int offset = 0;
             boolean moreData = true;
             int batchSize = 100000;
 
             while (moreData) {
-                setFetchStmtParameters(fetchStmt, offset, batchSize, tableName);
+                setFetchStmtParameters(fetchStmt, offset, batchSize, driver);
                 ResultSet values = fetchStmt.executeQuery();
                 ResultSetMetaData valuesMd = values.getMetaData();
 
                 if (offset == 0) {
                     // Create table on first batch
-                    String sqlCreate = buildCreateTableSql(tableName, valuesMd, driver);
+                    String sqlCreate = buildCreateTableSql(tableName, valuesMd, converter);
                     
                     try {
                         conn_output.createStatement().executeUpdate(sqlCreate.toString());
@@ -570,7 +505,7 @@ public class OutputConnection {
 
                 int batchCount = 0;
                 while (values.next()) {
-                    setInsertStmtParameters(insertStmt, values, valuesMd, tableName);
+                    setInsertStmtParameters(insertStmt, values, valuesMd, converter);
                     insertStmt.addBatch();
                     if (++batchCount % batchSize == 0) {
                         insertStmt.executeBatch();

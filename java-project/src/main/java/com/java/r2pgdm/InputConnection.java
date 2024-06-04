@@ -20,7 +20,9 @@ public class InputConnection {
     private char _Quoting = '`';
     private static final String[] TYPES = new String[]{"TABLE"};
     private DatabaseMetaData _metaData;
-    private String _schema, driver, dbType;
+    private String _schema;
+    String driver;
+    public String dbType;
 
     // Connection conn;
     ConnectionPool connectionPool;
@@ -103,6 +105,13 @@ public class InputConnection {
 
         try {
             ResultSet rs = _metaData.getTables(_schema, _schema, "%", TYPES);
+
+            if(!rs.next() && dbType.equalsIgnoreCase("mssql")) {
+                rs = _metaData.getTables(null, "dbo", "%", TYPES);
+            } else {
+                rs.beforeFirst();
+            }
+
             while (rs.next()) {
                 String name = rs.getString(3);
                 String[] forbidden = {"node", "property", "edge", "node_c1", "node_c2", "edge_c1", "edge_c2", "property_c1", "property_c2"};
@@ -299,16 +308,16 @@ public class InputConnection {
         List<String> cols = getColumns(tableName);
         StringBuilder sqlSB = new StringBuilder("SELECT ");
     
-        cols.forEach(c -> sqlSB.append(c).append(","));
+        cols.forEach(c -> sqlSB.append(c).append(", "));
     
-        sqlSB.append(" ROW_NUMBER() OVER (ORDER BY (").append(cols.get(0)).append(")) AS rId FROM ");
+        sqlSB.append("ROW_NUMBER() OVER (ORDER BY ").append(cols.get(0)).append(") AS rId FROM ");
         sqlSB.append(Character.toString(_Quoting)).append(tableName).append(Character.toString(_Quoting));
-        sqlSB.append(" GROUP BY ");
     
-        cols.forEach(c -> sqlSB.append(c).append(","));
-    
-        sqlSB.setLength(sqlSB.length() - 1);
-        sqlSB.append(" LIMIT ? OFFSET ?;");
+        if (dbType.equalsIgnoreCase("mssql")) {
+            sqlSB.append(" ORDER BY rId OFFSET ? ROWS FETCH NEXT ? ROWS ONLY;");
+        } else {
+            sqlSB.append(" ORDER BY rId LIMIT ? OFFSET ?;");
+        }
     
         String sql = sqlSB.toString();
     
@@ -323,12 +332,17 @@ public class InputConnection {
     
                 Future<Integer> future = executorService.submit(() -> {
                     Connection connThread = connectionPool.getConnection();
-                    PreparedStatement stmt = connThread.prepareStatement(sql, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+                    PreparedStatement stmt = connThread.prepareStatement(sql);
 
                     // Set parameters for pagination
-                    stmt.setInt(1, batchSize);
-                    stmt.setInt(2, currentOffset);
-    
+                    if (dbType.equalsIgnoreCase("mssql")) {
+                        stmt.setInt(1, currentOffset);
+                        stmt.setInt(2, batchSize);
+                    } else {
+                        stmt.setInt(1, batchSize);
+                        stmt.setInt(2, currentOffset);
+                    }
+
                     // Retrieve the data
                     ResultSet values = stmt.executeQuery();
                     ResultSetMetaData valuesMd = values.getMetaData();
@@ -356,6 +370,7 @@ public class InputConnection {
                     reportProgress();
                 } catch (InterruptedException | ExecutionException e) {
                     e.printStackTrace();
+                    System.err.println(sql);
                 }
             }
 
