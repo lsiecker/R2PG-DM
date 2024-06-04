@@ -470,7 +470,7 @@ public class OutputConnection {
                         } else if (columnType.contains("blob")) {
                             // replace blob with varbinary(max) and use setBinaryStream to insert data
                             sqlCreate = new StringBuilder(sqlCreate.toString().replace("blob", "varchar(max)"));
-                        } else if (columnType.contains("geometry")) {
+                        } else if (columnType.contains("geometry") & (driver.equals("com.microsoft.sqlserver.jdbc.SQLServerDriver") || driver.equals("mssql-jdbc"))){
                             // replace geometry with geography
                             sqlCreate = new StringBuilder(sqlCreate.toString().replace("geometry", "geography"));
                         }
@@ -492,7 +492,13 @@ public class OutputConnection {
                         }
                     }
                     sqlCreate.append(");");
-                    conn_output.createStatement().executeUpdate(conn_output.nativeSQL(sqlCreate.toString()));
+                    try {
+                        conn_output.createStatement().executeUpdate(conn_output.nativeSQL(sqlCreate.toString()));
+                    } catch (SQLException e) {
+                        System.out.println("Error copying table " + tableName);
+                        System.out.println(sqlCreate.toString() + "\n");
+                        e.printStackTrace();
+                    }
                 }
 
                 // If the rs is empty, skip the insert
