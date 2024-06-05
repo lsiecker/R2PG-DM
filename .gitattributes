@@ -1,8 +1,9 @@
-# For file percentages, do not take into account the files in rdb or PLpgSQL files using github linguist
+# Exclude specific file types from language statistics
+*.sql linguist-vendored
+*.PLSQL linguist-vendored
+*.PLpgSQL linguist-vendored
+*.pgsql linguist-vendored
+*.db linguist-vendored
 
-*.sql linguist-vendored=false
-*.PLSQL linguist-vendored=false
-*.PLpgSQL linguist-vendored=false
-*.pgsql linguist-vendored=false
-*.db linguist-vendored=false
-RDB/* linguist-vendored=false
+# Exclude files in the RDB directory from language statistics
+RDB/* linguist-vendored
