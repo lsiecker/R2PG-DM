@@ -23,6 +23,8 @@ public class InputConnectionTest {
     InputConnection input;
     Connection conn;
     static String[] expectedTables = {"city", "country", "countrylanguage"};
+    static String[] expectedJoinTable = {"country"};
+    static String[] expectedTablesNodes = {"city", "countrylanguage"};
     Map<String, Pair<Integer, List<Integer>>> nrOfCFKs;
     Map<String, List<String>> columnNames;
 
@@ -64,6 +66,7 @@ public class InputConnectionTest {
         stmt.executeUpdate("INSERT INTO country (Code, Name) VALUES ('USA', 'United States'), ('CAN', 'Canada')");
         stmt.executeUpdate("INSERT INTO city (ID, Name, CountryCode) VALUES (1, 'New York', 'USA'), (2, 'Los Angeles', 'USA'), (3, 'Toronto', 'CAN')");
         stmt.executeUpdate("INSERT INTO countrylanguage (CountryCode, Language, IsOfficial, Percentage) VALUES ('USA', 'English', 'T', 82.1), ('CAN', 'English', 'T', 56.9), ('CAN', 'French', 'T', 21.4)");
+        
         stmt.close();
 
         // Verify table creation
@@ -161,7 +164,7 @@ public class InputConnectionTest {
     public void createNodesAndProperties() throws SQLException {
         int total = 0;
         int tablesProcessed = 1;
-        for (String t : expectedTables) {
+        for (String t : expectedTablesNodes) {
             Statement stmt = conn.createStatement();
             ResultSet rowCountRS = stmt.executeQuery("select count(*) from " + t);
             rowCountRS.next();

@@ -105,20 +105,27 @@ public class InputConnection {
 
         try {
             ResultSet rs = _metaData.getTables(_schema, _schema, "%", TYPES);
-
-            if(!rs.next() && dbType.equalsIgnoreCase("mssql")) {
+        
+            boolean hasTables = false;
+            if (rs.next()) {
+                hasTables = true;
+            } else if (dbType.equalsIgnoreCase("mssql")) {
                 rs = _metaData.getTables(null, "dbo", "%", TYPES);
-            } else {
-                rs.beforeFirst();
-            }
-
-            while (rs.next()) {
-                String name = rs.getString(3);
-                String[] forbidden = {"node", "property", "edge", "node_c1", "node_c2", "edge_c1", "edge_c2", "property_c1", "property_c2"};
-                if (!Arrays.asList(forbidden).contains(name)) {
-                    tables.add(name);
+                if (rs.next()) {
+                    hasTables = true;
                 }
             }
+        
+            if (hasTables) {
+                do {
+                    String name = rs.getString(3);
+                    String[] forbidden = {"node", "property", "edge", "node_c1", "node_c2", "edge_c1", "edge_c2", "property_c1", "property_c2"};
+                    if (!Arrays.asList(forbidden).contains(name)) {
+                        tables.add(name);
+                    }
+                } while (rs.next());
+            }
+        
         } catch (SQLException e) {
             e.printStackTrace();
         }
