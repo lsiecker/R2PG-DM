@@ -33,7 +33,7 @@ public class MySQLConverter implements SQLConverter {
         } else if (columnType.contains("year")) {
             columnType = "int";
         } else if (columnType.contains("blob")) {
-            columnType = "varchar(max)";
+            columnType = "LONGBLOB";
         }
 
         StringBuilder columnDefinition = new StringBuilder(columnName + " " + columnType);

@@ -425,19 +425,19 @@ public class OutputConnection {
     }
 
     private static String buildCreateTableSql(String tableName, ResultSetMetaData metaData, SQLConverter converter) throws SQLException {
-    StringBuilder sqlCreate = new StringBuilder("CREATE TABLE " + tableName + " (");
-    for (int i = 1; i <= metaData.getColumnCount(); i++) {
-        String columnDefinition = converter.convertColumnDefinition(metaData, i);
-        sqlCreate.append(columnDefinition);
+        StringBuilder sqlCreate = new StringBuilder("CREATE TABLE " + tableName + " (");
+        for (int i = 1; i <= metaData.getColumnCount(); i++) {
+            String columnDefinition = converter.convertColumnDefinition(metaData, i);
+            sqlCreate.append(columnDefinition);
 
-        if (i < metaData.getColumnCount()) {
-            sqlCreate.append(", ");
+            if (i < metaData.getColumnCount()) {
+                sqlCreate.append(", ");
+            }
         }
-    }
-    sqlCreate.append(");");
+        sqlCreate.append(");");
 
-    return converter.convertQuery(sqlCreate.toString());
-}
+        return converter.convertQuery(sqlCreate.toString());
+    }
 
 
     private static void setInsertStmtParameters(PreparedStatement stmt, ResultSet values, ResultSetMetaData metaData, SQLConverter converter) throws SQLException {
@@ -468,7 +468,7 @@ public class OutputConnection {
             // Fetch data from the input database
             PreparedStatement fetchStmt = conn_input.prepareStatement(buildFetchSql(tableName, schema, driver));
 
-        SQLConverter converter = SQLConverterFactory.getConverter(outputConn.dbType);
+            SQLConverter converter = SQLConverterFactory.getConverter(outputConn.dbType);
 
             int offset = 0;
             boolean moreData = true;
@@ -510,7 +510,7 @@ public class OutputConnection {
                 PreparedStatement insertStmt = conn_output.prepareStatement(insertSql.toString());
 
                 int batchCount = 0;
-                while (values.next()) {
+                while (values.next()) { // TODO: Prevent first item from being skipped
                     setInsertStmtParameters(insertStmt, values, valuesMd, converter);
                     insertStmt.addBatch();
                     if (++batchCount % batchSize == 0) {
