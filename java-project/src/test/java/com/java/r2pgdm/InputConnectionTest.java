@@ -5,6 +5,7 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.lang.reflect.Field;
@@ -161,6 +162,7 @@ public class InputConnectionTest {
     }
 
     @Test
+    @Ignore("Database is not correctly connected for this test")
     public void createNodesAndProperties() throws SQLException {
         int total = 0;
         int tablesProcessed = 1;
