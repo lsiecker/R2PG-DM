@@ -1,0 +1,4 @@
+# For file percentages, do not take into account the files in rdb or PLpgSQL files using github linguist
+
+*.sql linguist-vendored=false
+rdb/* linguist-vendored=false
