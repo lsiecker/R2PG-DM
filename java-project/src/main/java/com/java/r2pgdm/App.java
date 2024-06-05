@@ -40,7 +40,7 @@ public class App {
         try {
             Long start = System.currentTimeMillis();
             // Read the configuration from the .ini file.
-            Wini ini = new Wini(new File("configs/mssql/sakila.ini"));
+            Wini ini = new Wini(new File("configs/mssql/world.ini"));
             Config input = GetConfiguration(ini.get("input"));
             Config output = GetConfiguration(ini.get("output"));
             Config mapping = GetConfiguration(ini.get("mapping"));
@@ -60,8 +60,13 @@ public class App {
                 tables.addAll(inputConn.retrieveViewNames());
             }
 
+            if (tables.isEmpty()) {
+                System.out.println("No tables or views found in the database.");
+                return;
+            }
+
             List<String> all_tables = new ArrayList<>(tables);
-            
+
             Map<String, List<CompositeForeignKey>> joinTables = inputConn.retrieveJoinTableNames(tables);
             tables.removeAll(joinTables.keySet());
 
@@ -112,10 +117,6 @@ public class App {
 
         } catch (IOException e) {
             e.printStackTrace();
-        } finally {
-            // Clean up database connection
-            inputConn.connectionPool.closeAllConnections();
-            outputConn.connectionPool.closeAllConnections();
         }
     }
 
