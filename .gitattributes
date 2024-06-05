@@ -1,0 +1,14 @@
+# Exclude specific file types from language statistics
+*.sql linguist-detectable=false
+*.PLSQL linguist-detectable=false
+*.PLpgSQL linguist-detectable=false
+*.pgsql linguist-detectable=false
+*.db linguist-detectable=false
+
+# Exclude files in the RDB directory from language statistics
+RDB/* linguist-detectable=false
+
+.gitattributes  export-ignore
+.gitignore      export-ignore
+.vscode/*       export-ignore
+.github/*       export-ignore
