@@ -470,15 +470,15 @@ public class InputConnection {
      * @return      Partial query
      */
     private String sourceNodeQuery(CompositeForeignKey cfk) {
-        String sql = "sourceNodes" + cfk.targetTable + " AS (SELECT n.id, p.pkey, " + convertToVarchar(dbType, "p.pvalue") + " AS pvalue FROM node n INNER JOIN property p ON " +
-                "n.id = p.id AND " + convertToVarchar(dbType, "n.label") + " = '" + cfk.sourceTable + "' AND ";
+        String sql = "sourceNodes" + cfk.targetTable + " AS (SELECT n.id, p.pkey, " + convertToVarchar(dbType, "VARCHAR(MAX)") + " AS pvalue FROM node n INNER JOIN property p ON " +
+                "n.id = p.id WHERE " + "n.label" + " = '" + cfk.sourceTable + "' AND ";
 
         for (int i = 0; i < cfk.foreignKeys.size(); i++) {
             ForeignKey fk = cfk.foreignKeys.get(i);
             if (i > 0) {
                 sql = sql.concat(" OR ");
             }
-            sql = sql.concat(convertToVarchar(dbType, "p.pkey") + " = '").concat(fk.sourceAttribute).concat("'");
+            sql = sql.concat("p.pkey") + " = '".concat(fk.sourceAttribute).concat("'");
         }
         sql = sql.concat((")"));
         return sql;
@@ -492,17 +492,17 @@ public class InputConnection {
      * @return      Partial query
      */
     private String targetNodeQuery(CompositeForeignKey cfk) {
-        String sql = "targetNodes" + cfk.targetTable + " AS (SELECT n.id, p.pkey, " + convertToVarchar(dbType, "p.pvalue") + " AS pvalue FROM node n INNER JOIN property p ON " +
-                "n.id = p.id AND " + convertToVarchar(dbType, "n.label") + " = '" + cfk.targetTable + "' AND (";
+        String sql = "targetNodes" + cfk.targetTable + " AS (SELECT n.id, p.pkey, " + convertToVarchar(dbType, "VARCHAR(MAX)") + " AS pvalue FROM node n INNER JOIN property p ON " +
+                "n.id = p.id WHERE " + "n.label" + " = '" + cfk.targetTable + "' AND ";
 
         for (int i = 0; i < cfk.foreignKeys.size(); i++) {
             ForeignKey fk = cfk.foreignKeys.get(i);
             if (i > 0) {
                 sql = sql.concat(" OR ");
             }
-            sql = sql.concat(convertToVarchar(dbType, "p.pkey") + " = '").concat(fk.targetAttribute).concat("'");
+            sql = sql.concat("p.pkey" + " = '").concat(fk.targetAttribute).concat("'");
         }
-        sql = sql.concat(("))"));
+        sql = sql.concat((")"));
         return sql;
     }
 
@@ -517,9 +517,9 @@ public class InputConnection {
 
         for (int i = 0; i < cfk.foreignKeys.size(); i++) {
             ForeignKey fk = cfk.foreignKeys.get(i);
-            sql = sql.concat(", MAX(CASE WHEN " + convertToVarchar(dbType, "pkey") + " ='")
-                    .concat(convertToVarchar(dbType, fk.sourceAttribute))
-                    .concat("' THEN " + convertToVarchar(dbType, "pvalue") + " END) AS ")
+            sql = sql.concat(", MAX(CASE WHEN " + "pkey" + " = '")
+                    .concat(fk.sourceAttribute)
+                    .concat("' THEN " + "pvalue" + " END) AS ")
                     .concat(fk.sourceAttribute);
         }
         return sql.concat(" FROM sourceNodes" + cfk.targetTable + " s GROUP BY s.id)");
@@ -536,9 +536,9 @@ public class InputConnection {
 
         for (int i = 0; i < cfk.foreignKeys.size(); i++) {
             ForeignKey fk = cfk.foreignKeys.get(i);
-            sql = sql.concat(", MAX(CASE WHEN " + convertToVarchar(dbType, "pkey") + " ='")
-                    .concat(convertToVarchar(dbType, fk.targetAttribute))
-                    .concat("' THEN " + convertToVarchar(dbType, "pvalue") + " END) AS ")
+            sql = sql.concat(", MAX(CASE WHEN " + "pkey" + " ='")
+                    .concat(fk.targetAttribute)
+                    .concat("' THEN " + "pvalue" + " END) AS ")
                     .concat(fk.targetAttribute);
         }
         return sql.concat(" FROM targetNodes" + cfk.targetTable + " s GROUP BY s.id)");
@@ -590,10 +590,19 @@ public class InputConnection {
                     .concat(fk.sourceAttribute)
                     .concat(" = ")
                     .concat("t.")
-                    .concat(fk.targetAttribute);
+                    .concat(fk.targetAttribute)
+                    .concat(";");
         }
 
         return sql;
+    }
+
+    private String convertSQLToDbtype(String sql) {
+        if (dbType.equalsIgnoreCase("mysql")){
+            return sql.replace("VARCHAR(MAX) AS pvalue", "CAST(p.pvalue AS CHAR(65000)) AS pvalue");
+        } else {
+            return sql;
+        }
     }
 
     /**
@@ -618,6 +627,8 @@ public class InputConnection {
                 .concat(", ")
                 .concat(joinedSourceNodesQuery(cfk))
                 .concat(finalEdgeJoinString(cfk));
+
+        sql = convertSQLToDbtype(sql);
 
         try {
             Connection conn = connectionPool.getConnection();
@@ -705,7 +716,7 @@ public class InputConnection {
 
     private String convertToVarchar(String dbType, String column) {
         if (dbType.equalsIgnoreCase("mssql")) {
-            return " CONVERT(VARCHAR(MAX), " + column + ")";
+            return " CAST(p.pvalue AS " + column + ") ";
         } else {
             return column;
         }

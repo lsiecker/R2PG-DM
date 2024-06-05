@@ -152,6 +152,12 @@ public class OutputConnection {
 
     static void createEdges(InputConnection inputConn, InputConnection outputconn, String t) {
         List<CompositeForeignKey> fks = inputConn.retrieveCompositeForeignKeys(t);
+
+        if (fks.size() == 0) {
+            System.out.println("No foreign keys found for table " + t);
+            return;
+        }
+
         fks.forEach(fk -> outputconn.insertEdges(fk, t));
     }
 
