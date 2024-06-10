@@ -606,7 +606,7 @@ public class InputConnection {
 
     private String convertSQLToDbtype(String sql) {
         if (dbType.equalsIgnoreCase("mysql")){
-            return sql.replace("VARCHAR(MAX) AS pvalue", "CAST(p.pvalue AS CHAR(65000)) AS pvalue");
+            return sql.replace("VARCHAR(MAX) AS pvalue", "p.pvalue AS pvalue");
         } else {
             return sql;
         }

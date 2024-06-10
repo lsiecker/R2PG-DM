@@ -23,6 +23,7 @@ public class MSSQLConverter implements SQLConverter {
     public String convertColumnDefinition(ResultSetMetaData metaData, int columnIndex) throws SQLException {
         String columnName = metaData.getColumnName(columnIndex);
         String columnType = metaData.getColumnTypeName(columnIndex).toLowerCase();
+        Boolean signed = metaData.isSigned(columnIndex); // true if signed, false if unsigned (only for integer types
         int columnSize = metaData.getPrecision(columnIndex);
         int decimalDigits = metaData.getScale(columnIndex);
         boolean isNullable = metaData.isNullable(columnIndex) == ResultSetMetaData.columnNullable;
@@ -41,6 +42,8 @@ public class MSSQLConverter implements SQLConverter {
             columnType = "varbinary(max)";
         } else if (columnType.contains("geometry")) {
             columnType = "geography";
+        } else if (columnType.contains("nvarchar") & (columnSize > 7999)) {
+            columnType = "varbinary(max)";
         }
 
         StringBuilder columnDefinition = new StringBuilder(columnName + " " + columnType);
@@ -55,7 +58,7 @@ public class MSSQLConverter implements SQLConverter {
             }
         }
 
-        if (columnType.contains("unsigned")) {
+        if (!signed) {
             columnDefinition = new StringBuilder(columnDefinition.toString().replace("unsigned", ""));
         }
 
@@ -88,7 +91,8 @@ public class MSSQLConverter implements SQLConverter {
                 String geometryString = wktWriter.write(geometryValue);
                 stmt.setString(columnIndex, "ST_GeomFromText('" + geometryString + "')");
             } else if (value instanceof Blob) {
-                stmt.setBinaryStream(columnIndex, values.getBinaryStream(columnIndex));
+                Blob blob = (Blob) value;
+                stmt.setBinaryStream(columnIndex, blob.getBinaryStream(), (int) blob.length());
             } else if (value instanceof byte[]) {
                 stmt.setBytes(columnIndex, (byte[]) value);
             } else {
