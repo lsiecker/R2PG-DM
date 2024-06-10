@@ -4,12 +4,11 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.locationtech.jts.io.WKTWriter;
-
+import com.java.r2pgdm.converter.SQLConverter;
+import com.java.r2pgdm.converter.SQLConverterFactory;
 import com.java.r2pgdm.graph.Edge;
 import com.java.r2pgdm.graph.Node;
 import com.java.r2pgdm.graph.Property;
-import com.microsoft.sqlserver.jdbc.Geography;
 
 /**
  * Contains functionality regarding output to the input database
@@ -30,6 +29,7 @@ public class OutputConnection {
             conn = input.connectionPool.getConnection();
             connectionPool = input.connectionPool;
             driver = driver2;
+
         } catch (SQLException e) {
             e.printStackTrace();
         } finally {
@@ -152,6 +152,12 @@ public class OutputConnection {
 
     static void createEdges(InputConnection inputConn, InputConnection outputconn, String t) {
         List<CompositeForeignKey> fks = inputConn.retrieveCompositeForeignKeys(t);
+
+        if (fks.size() == 0) {
+            System.out.println("No foreign keys found for table " + t);
+            return;
+        }
+
         fks.forEach(fk -> outputconn.insertEdges(fk, t));
     }
 
@@ -311,7 +317,12 @@ public class OutputConnection {
      * Calculates and prints some statistics about the generated output data
      */
     static void printStatistics() {
-        String sql = "SELECT COUNT(*) as stats_edge FROM edge UNION SELECT COUNT(*) AS stats_nodes FROM node UNION SELECT COUNT(*) AS stats_prop FROM property;";
+        String sql = "";
+        if (driver.equals("com.microsoft.sqlserver.jdbc.SQLServerDriver") || driver.equals("mssql-jdbc")) {
+            sql = "SELECT COUNT(*) as stats_edge FROM dbo.edge UNION SELECT COUNT(*) AS stats_nodes FROM dbo.node UNION SELECT COUNT(*) AS stats_prop FROM dbo.property;";
+        } else {
+            sql = "SELECT COUNT(*) as stats_edge FROM edge UNION SELECT COUNT(*) AS stats_nodes FROM node UNION SELECT COUNT(*) AS stats_prop FROM property;";
+        }
         List<String> results = new ArrayList<>();
 
         try {
@@ -387,6 +398,54 @@ public class OutputConnection {
         return getResultSet(sql);
     }
 
+    private static String buildFetchSql(String tableName, String schema, String driver) {
+        String fetchSql = "SELECT * FROM " + tableName + " LIMIT ? OFFSET ?;";
+        if (tableName.contains(".") && isMssqlDriver(driver)) {
+            fetchSql = "SELECT * FROM " + schema + "." + tableName
+                    + " ORDER BY (SELECT NULL) OFFSET ? ROWS FETCH NEXT ? ROWS ONLY;";
+        } else if (isMssqlDriver(driver)) {
+            fetchSql = "SELECT * FROM " + tableName
+                    + " ORDER BY (SELECT NULL) OFFSET ? ROWS FETCH NEXT ? ROWS ONLY;";
+        }
+        return fetchSql;
+    }
+
+    private static boolean isMssqlDriver(String driver) {
+        return driver.equals("com.microsoft.sqlserver.jdbc.SQLServerDriver") || driver.equals("mssql-jdbc");
+    }
+
+    private static void setFetchStmtParameters(PreparedStatement stmt, int offset, int batchSize, String driver) throws SQLException {
+        if (isMssqlDriver(driver)) {
+            stmt.setInt(1, offset);
+            stmt.setInt(2, batchSize);
+        } else {
+            stmt.setInt(1, batchSize);
+            stmt.setInt(2, offset);
+        }
+    }
+
+    private static String buildCreateTableSql(String tableName, ResultSetMetaData metaData, SQLConverter converter) throws SQLException {
+        StringBuilder sqlCreate = new StringBuilder("CREATE TABLE " + tableName + " (");
+        for (int i = 1; i <= metaData.getColumnCount(); i++) {
+            String columnDefinition = converter.convertColumnDefinition(metaData, i);
+            sqlCreate.append(columnDefinition);
+
+            if (i < metaData.getColumnCount()) {
+                sqlCreate.append(", ");
+            }
+        }
+        sqlCreate.append(");");
+
+        return converter.convertQuery(sqlCreate.toString());
+    }
+
+
+    private static void setInsertStmtParameters(PreparedStatement stmt, ResultSet values, ResultSetMetaData metaData, SQLConverter converter) throws SQLException {
+        for (int i = 1; i <= metaData.getColumnCount(); i++) {
+            converter.setPreparedStatementParameter(stmt, values, metaData, i);
+        }
+    }
+
     public static void copyTable(InputConnection inputConn, InputConnection outputConn, String t) {
         int totalEntries = 0;
         try {
@@ -401,99 +460,31 @@ public class OutputConnection {
                 String[] parts = t.split("\\.");
                 schema = parts[0];
                 tableName = parts[1];
-
             }
 
             // Drop existing table or view
             conn_output.createStatement().executeUpdate("DROP TABLE IF EXISTS " + tableName + ";");
 
-            // Setting up SQL to fetch data
-            String fetchSql = "SELECT * FROM " + t + " LIMIT ? OFFSET ?;";
-            if (t.contains(".")
-                    && (driver.equals("com.microsoft.sqlserver.jdbc.SQLServerDriver") || driver.equals("mssql-jdbc"))) {
-                fetchSql = "SELECT * FROM " + inputConn.getSchema() + "." + schema + "." + tableName
-                        + " ORDER BY (SELECT NULL) OFFSET ? ROWS FETCH NEXT ? ROWS ONLY;";
-            } else if (driver.equals("com.microsoft.sqlserver.jdbc.SQLServerDriver") || driver.equals("mssql-jdbc")) {
-                fetchSql = "SELECT * FROM " + inputConn.getSchema() + "." + inputConn.getSchema() + "." + tableName
-                        + " ORDER BY (SELECT NULL) OFFSET ? ROWS FETCH NEXT ? ROWS ONLY;";
-            }
-            PreparedStatement fetchStmt = conn_input.prepareStatement(conn_input.nativeSQL(fetchSql));
+            // Fetch data from the input database
+            PreparedStatement fetchStmt = conn_input.prepareStatement(buildFetchSql(tableName, schema, driver));
+
+            SQLConverter converter = SQLConverterFactory.getConverter(outputConn.dbType);
 
             int offset = 0;
             boolean moreData = true;
             int batchSize = 100000;
 
             while (moreData) {
-                if (driver.equals("com.microsoft.sqlserver.jdbc.SQLServerDriver") || driver.equals("mssql-jdbc")) {
-                    fetchStmt.setInt(1, offset);
-                    fetchStmt.setInt(2, batchSize);
-                } else {
-                    fetchStmt.setInt(1, batchSize);
-                    fetchStmt.setInt(2, offset);
-                }
+                setFetchStmtParameters(fetchStmt, offset, batchSize, driver);
                 ResultSet values = fetchStmt.executeQuery();
                 ResultSetMetaData valuesMd = values.getMetaData();
 
                 if (offset == 0) {
                     // Create table on first batch
-                    StringBuilder sqlCreate = new StringBuilder("CREATE TABLE " + tableName + "(");
-                    for (int i = 1; i <= valuesMd.getColumnCount(); i++) {
-                        String columnName = valuesMd.getColumnName(i);
-                        String columnType = valuesMd.getColumnTypeName(i).toLowerCase();
-                        int columnSize = valuesMd.getPrecision(i);
-                        int decimalDigits = valuesMd.getScale(i);
-
-                        if (columnName.contains(" ")) {
-                            columnName = "[" + columnName + "]";
-                        }
-
-                        sqlCreate.append(columnName).append(" ").append(columnType);
-
-                        // Add size/precision/scale based on the column type
-                        if (columnType.matches("varchar|char|nvarchar|nchar")) {
-                            if (columnSize > 0) {
-                                sqlCreate.append("(").append(columnSize).append(")");
-                            }
-                        } else if (columnType.matches("decimal|numeric")) {
-                            if (columnSize > 0 && decimalDigits >= 0) {
-                                sqlCreate.append("(").append(columnSize).append(", ").append(decimalDigits).append(")");
-                            }
-                        } else if (columnType.contains("mediumint")) {
-                            // replace medium int with int
-                            sqlCreate = new StringBuilder(sqlCreate.toString().replace("mediumint", "int"));
-                        } else if (columnType.contains("timestamp")) {
-                            // replace timestamp with datetime
-                            sqlCreate = new StringBuilder(sqlCreate.toString().replace("timestamp", "datetime"));
-                        } else if (columnType.contains("year")) {
-                            // replace year with int
-                            sqlCreate = new StringBuilder(sqlCreate.toString().replace("year", "int"));
-                        } else if (columnType.contains("blob")) {
-                            // replace blob with varbinary(max) and use setBinaryStream to insert data
-                            sqlCreate = new StringBuilder(sqlCreate.toString().replace("blob", "varchar(max)"));
-                        } else if (columnType.contains("geometry") & (driver.equals("com.microsoft.sqlserver.jdbc.SQLServerDriver") || driver.equals("mssql-jdbc"))){
-                            // replace geometry with geography
-                            sqlCreate = new StringBuilder(sqlCreate.toString().replace("geometry", "geography"));
-                        }
-
-                        // remove unsigned from query
-                        if (columnType.contains("unsigned")) {
-                            sqlCreate = new StringBuilder(sqlCreate.toString().replace("unsigned", ""));
-                        }
-
-                        // Handle nullability
-                        if (valuesMd.isNullable(i) == ResultSetMetaData.columnNullable) {
-                            sqlCreate.append(" NULL");
-                        } else {
-                            sqlCreate.append(" NOT NULL");
-                        }
-
-                        if (i < valuesMd.getColumnCount()) {
-                            sqlCreate.append(", ");
-                        }
-                    }
-                    sqlCreate.append(");");
+                    String sqlCreate = buildCreateTableSql(tableName, valuesMd, converter);
+                    
                     try {
-                        conn_output.createStatement().executeUpdate(conn_output.nativeSQL(sqlCreate.toString()));
+                        conn_output.createStatement().executeUpdate(sqlCreate.toString());
                     } catch (SQLException e) {
                         System.out.println("Error copying table " + tableName);
                         System.out.println(sqlCreate.toString() + "\n");
@@ -502,7 +493,7 @@ public class OutputConnection {
                 }
 
                 // If the rs is empty, skip the insert
-                if (!values.next()) {
+                if (!values.isBeforeFirst()) {
                     moreData = false;
                     break;
                 }
@@ -520,41 +511,7 @@ public class OutputConnection {
 
                 int batchCount = 0;
                 while (values.next()) {
-                    for (int i = 1; i <= valuesMd.getColumnCount(); i++) {
-                        Object value = values.getObject(i);
-                        try {
-                            if (valuesMd.getColumnTypeName(i).equalsIgnoreCase("YEAR") && value != null) {
-                                // Convert the value to a compatible format if it is not null
-                                if (value instanceof Date) {
-                                    insertStmt.setInt(i, ((Date) value).toLocalDate().getYear());
-                                } else if (value instanceof Integer) {
-                                    insertStmt.setInt(i, (Integer) value);
-                                } else if (value instanceof String) {
-                                    insertStmt.setInt(i, Integer.parseInt((String) value));
-                                } else {
-                                    // Handle other potential formats if necessary
-                                    insertStmt.setInt(i, Integer.parseInt(value.toString()));
-                                }
-                            } else if (value instanceof Geography) {
-                                org.locationtech.jts.geom.Geometry geometryValue = (org.locationtech.jts.geom.Geometry) value;
-                                WKTWriter wktWriter = new WKTWriter();
-                                String geometryString = wktWriter.write(geometryValue);
-                                insertStmt.setString(i, "ST_GeomFromText('" + geometryString + "')");
-                            } else if (value instanceof Blob) {
-                                // Handle blob data
-                                insertStmt.setBinaryStream(i, values.getBinaryStream(i));
-                            } else if (value instanceof byte[]) {
-                                // Handle byte array data
-                                insertStmt.setBytes(i, (byte[]) value);
-                            } else {
-                                insertStmt.setObject(i, value);
-                            }
-                        } catch (Exception e) {
-                            System.err.println("Error setting value for column: " + valuesMd.getColumnName(i)
-                                    + " with value: " + value);
-                            throw e;
-                        }
-                    }
+                    setInsertStmtParameters(insertStmt, values, valuesMd, converter);
                     insertStmt.addBatch();
                     if (++batchCount % batchSize == 0) {
                         insertStmt.executeBatch();

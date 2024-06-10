@@ -40,7 +40,7 @@ public class App {
         try {
             Long start = System.currentTimeMillis();
             // Read the configuration from the .ini file.
-            Wini ini = new Wini(new File("configs/mssql/sakila.ini"));
+            Wini ini = new Wini(new File("configs/mssql/world.ini"));
             Config input = GetConfiguration(ini.get("input"));
             Config output = GetConfiguration(ini.get("output"));
             Config mapping = GetConfiguration(ini.get("mapping"));
@@ -50,28 +50,42 @@ public class App {
             outputConn = new InputConnection(output.connectionString, output.database, output.driver);
             new OutputConnection(outputConn, input.driver);
 
+            
             List<String> tables = new ArrayList<>();
-
+            
             if (mapping.tables) {
                 tables.addAll(inputConn.retrieveTableNames());
             }
-
+            
             if (mapping.views) {
                 tables.addAll(inputConn.retrieveViewNames());
             }
-
-            List<String> all_tables = new ArrayList<>(tables);
             
+            if (tables.isEmpty()) {
+                System.out.println("No tables or views found in the database.");
+                return;
+            }
+            
+            List<String> all_tables = new ArrayList<>(tables);
+
             Map<String, List<CompositeForeignKey>> joinTables = inputConn.retrieveJoinTableNames(tables);
             tables.removeAll(joinTables.keySet());
-
+            
             // Transform tables in parallel
             ExecutorService executorService = Executors.newCachedThreadPool();
             ArrayList<Future<?>> tFinished = new ArrayList<>();
-
+            
+            // If the input and output databases are the same, then we don't need to copy the tables.
+            Boolean noCopy = Boolean.valueOf(input.connectionString.equals(output.connectionString) && input.database.equals(output.database));
+            if (noCopy){
+                System.out.println("Input and output databases are the same. Skipping table copying.");
+            }
+            
             // Copy the necessary tables from the input to the output database
-            all_tables.forEach(t -> tFinished.add(executorService.submit(() -> OutputConnection.copyTable(inputConn, outputConn, t))));
-            awaitTableCompletion(tFinished);
+            if (!noCopy) {
+                all_tables.forEach(t -> tFinished.add(executorService.submit(() -> OutputConnection.copyTable(inputConn, outputConn, t))));
+                awaitTableCompletion(tFinished);
+            }
 
 
             // Create nodes and their properties
@@ -95,8 +109,10 @@ public class App {
             awaitTableCompletion(tFinished);
             System.out.println("Edges with properties created");
 
-            all_tables.forEach(t -> tFinished.add(executorService.submit(() -> OutputConnection.drop_tables_output(t))));
-            awaitTableCompletion(tFinished); // Wait for edges to finish creating
+            if (!noCopy) {
+                all_tables.forEach(t -> tFinished.add(executorService.submit(() -> OutputConnection.drop_tables_output(t))));
+                awaitTableCompletion(tFinished); // Wait for edges to finish creating
+            }
 
             // Print the statistics
             OutputConnection.printStatistics();
@@ -112,10 +128,6 @@ public class App {
 
         } catch (IOException e) {
             e.printStackTrace();
-        } finally {
-            // Clean up database connection
-            inputConn.connectionPool.closeAllConnections();
-            outputConn.connectionPool.closeAllConnections();
         }
     }
 

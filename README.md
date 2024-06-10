@@ -1,9 +1,34 @@
 # R2PG-DM
 
-This is an application for constructing property graphs from relational databases. 
+R2PG-DM is a powerful tool that allows you to construct property graphs from relational databases. This application is designed to be flexible, efficient, and easy to use.
 
-## Setup config.ini
-In order to use the application, a config.ini file is necessary for specifying the input databases connections. The format is the following:
+## Table of Contents
+
+1. [Features](#features)
+2. [Installation](#installation)
+3. [Configuration](#configuration)
+4. [Usage](#usage)
+5. [Neo4j Integration](#neo4j-integration)
+6. [Troubleshooting](#troubleshooting)
+7. [Contributing](#contributing)
+
+## Features
+
+- Convert relational databases into property graphs
+- Support for MySQL and Microsoft SQL Server databases
+- Generate CSV files for Neo4j graph database
+
+## Installation
+
+To install R2PG-DM, follow these steps:
+
+1. Clone the repository: `git clone https://github.com/lsiecker/r2pg-dm.git`
+2. Navigate into the project directory: `cd r2pg-dm`
+3. Build the R2PG-DM using Maven: `mvn clean build`
+
+## Configuration
+
+Before using R2PG-DM, you need to set up a `config.ini` file to specify the input database connections. Here's the format:
 
 ```
 [input]
@@ -11,16 +36,25 @@ connectionString=
 driver=sqlite
 ```
 
-Where the *connectionString* represents the jdbc connection string format as defined here: https://vladmihalcea.com/jdbc-driver-connection-url-strings/
+The connectionString should be in the JDBC connection string format. You can find more information about this format [here]( https://vladmihalcea.com/jdbc-driver-connection-url-strings/).
 
-The application has been tested with sqlite and will likely need some implementation changes with respect to handling spaces in order to be used with other SQL database systems. Alternatively, you can use the forked repository instead (But it is very slow for anything but toy databases).
+## Usage
+To use R2PG-DM, follow these steps:
 
-## Neo4j
+1. Set up your `config.ini` file as described in the [Configuration](#configuration) section.
+2. Run the application
 
-The application will generate the graph into 3 CSV files in the root folder called: **nodes.csv**, **edges.csv** and **properties.csv**. You can use these files as input for a Neo4j instance by running the script presented in file **script.cypher** located in this repository. 
+## Neo4j Integration
 
-For more information on how to install and setup a Neo4j instance refer to this website: https://neo4j.com/download/
-For more information on where to copy/paste the csv files, please see Section 2 in the following tutorial: https://neo4j.com/developer/desktop-csv-import/ (ignore the cypher (LOAD) queries in this article and use the queries from script.cypher instead.)
+R2PG-DM generates three CSV files: `nodes.csv`, `edges.csv` and `properties.csv`. You can use these files as input for a Neo4j instance by running the script in the `script.cypher` located in this repository. 
 
-Use Neo4j instance for visualization. Need plugin APOC installed (dynamic labels) -> https://neo4j-contrib.github.io/neo4j-apoc-procedures/
+For more information on how to install and setup a Neo4j instance refer to the [Neo4j download page](https://neo4j.com/download/)
+For information on where to place the CSV files, see Section 2 of this [Neo4j tutorial](https://neo4j.com/developer/desktop-csv-import/). During this tutorial you can ignore the cypher (LOAD) queries and use the queries from script.cypher instead.
 
+To use a Neo4j instance for visualization, you need the [APOC plugin](https://neo4j-contrib.github.io/neo4j-apoc-procedures/) installed (dynamic labels).
+
+## Troubleshooting
+If you encounter any issues while using R2PG-DM, please check the Issues page of this repository. If you don't find a solution there, feel free to open a new issue.
+
+## Contributing
+We welcome contributions to R2PG-DM! If you'd like to contribute, please fork the repository, make your changes, and open a pull request.
