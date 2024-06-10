@@ -493,7 +493,7 @@ public class OutputConnection {
                 }
 
                 // If the rs is empty, skip the insert
-                if (!values.next()) {
+                if (!values.isBeforeFirst()) {
                     moreData = false;
                     break;
                 }
@@ -510,7 +510,7 @@ public class OutputConnection {
                 PreparedStatement insertStmt = conn_output.prepareStatement(insertSql.toString());
 
                 int batchCount = 0;
-                while (values.next()) { // TODO: Prevent first item from being skipped
+                while (values.next()) {
                     setInsertStmtParameters(insertStmt, values, valuesMd, converter);
                     insertStmt.addBatch();
                     if (++batchCount % batchSize == 0) {
