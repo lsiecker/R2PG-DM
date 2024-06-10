@@ -1,4 +1,4 @@
-version: '1.0'
+version: '2.0'
 services:
   app:
     build: .
@@ -38,7 +38,19 @@ services:
     volumes:
       - avantgraph-data:/var/lib/avantgraph
 
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    restart: "on-failure"
+    ports:
+      - "1433:1433"
+    environment:
+      SA_PASSWORD: ${MSSQL_SA_PASSWORD} # Please set this in your .env file
+      ACCEPT_EULA: "Y"
+    volumes:
+      - mssql-data:/var/lib/mssql
+
 volumes:
   mysql-data:
   postgresdb-data:
   avantgraph-data:
+  mssql-data:
