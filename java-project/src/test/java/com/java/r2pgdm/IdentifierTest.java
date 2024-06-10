@@ -5,6 +5,9 @@ import org.junit.Test;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -61,4 +64,11 @@ public class IdentifierTest {
 
         return identifiers;
     }
+
+    @Test
+    public void testIdWithEmptyForeignKeys() {
+        Integer id = Identifier.id(Optional.empty(), Optional.empty());
+        assertEquals(Integer.valueOf(1), id);
+    }
+
 }
