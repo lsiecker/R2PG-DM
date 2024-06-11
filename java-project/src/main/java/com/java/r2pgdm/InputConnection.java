@@ -20,8 +20,9 @@ public class InputConnection {
     private char _Quoting = '`';
     private static final String[] TYPES = new String[]{"TABLE"};
     private DatabaseMetaData _metaData;
+    private String _database;
     private String _schema;
-    String driver;
+    private String _driver;
     public String dbType;
 
     // Connection conn;
@@ -33,12 +34,14 @@ public class InputConnection {
      * Establishes a database connected to the input database.
      * 
      * @param connectionString  JDBC connection string
-     * @param schema            name of database schema
+     * @param database          name of database
      * @param driver            name of JDBC driver
+     * @param schema            name of database schema
      */
-    public InputConnection(String connectionString, String schema, String driver) {
+    public InputConnection(String connectionString, String database, String driver, String schema) {
+        this._database = database;
+        this._driver = driver;
         this._schema = schema;
-        this.driver = driver;
         if (driver.contains("mysql")) {
             this.dbType = "mysql";
         } else if (driver.contains("sqlserver") || driver.contains("mssql")) {
@@ -49,7 +52,10 @@ public class InputConnection {
             this.dbType = "unknown";
         }
 
-        System.out.println("Connecting to " + dbType + " database " + schema + " using driver " + driver);
+        System.out.printf("%-32s: %s\n", "Database type", dbType);
+        System.out.printf("%-32s: %s\n", "Driver", driver);
+        System.out.printf("%-32s: %s\n", "Database", database);
+        System.out.printf("%-32s: %s\n", "Schema", schema);
 
         if (!driver.equals("mysql")) {
             this._Quoting = '"';
@@ -69,15 +75,16 @@ public class InputConnection {
      */
     private void connect(String connectionString) {
         try {
-            connectionPool = new ConnectionPool(driver, connectionString, 0, 64, true);
+            connectionPool = new ConnectionPool(_driver, connectionString, 0, 64, true);
             Connection conn = connectionPool.getConnection();
             conn.setAutoCommit(false);
-            System.out.println("Connection for input established.");
         } catch (SQLException e) {
             e.printStackTrace();
+        } finally {
+            connectionPool.printStatistics();
+            System.out.println("Connected to database!\n");       
         }
     }
-
     /**
      * Retrieves the database's metadata
      * 
@@ -104,13 +111,13 @@ public class InputConnection {
         List<String> tables = new ArrayList<>();
 
         try {
-            ResultSet rs = _metaData.getTables(_schema, _schema, "%", TYPES);
+            ResultSet rs = _metaData.getTables(_database, _schema, "%", TYPES);
         
             boolean hasTables = false;
             if (rs.next()) {
                 hasTables = true;
             } else if (dbType.equalsIgnoreCase("mssql")) {
-                rs = _metaData.getTables(null, "dbo", "%", TYPES);
+                rs = _metaData.getTables(null, _schema, "%", TYPES);
                 if (rs.next()) {
                     hasTables = true;
                 }
@@ -179,7 +186,7 @@ public class InputConnection {
         List<CompositeForeignKey> Fks = new ArrayList<>();
 
         try {
-            try (ResultSet foreignKeys = _metaData.getImportedKeys(_schema, null, tableName)) {
+            try (ResultSet foreignKeys = _metaData.getImportedKeys(_database, _schema, tableName)) {
                 while (foreignKeys.next()) {
                     boolean flag = false;
                     String st = foreignKeys.getString("FKTABLE_NAME");
@@ -228,7 +235,7 @@ public class InputConnection {
         }
 
         try {
-            ResultSet rs = _metaData.getColumns(_schema, null, tableName, null);
+            ResultSet rs = _metaData.getColumns(_database, _schema, tableName, null);
             while (rs.next()) {
                 String col = rs.getString(COLUMN_NAME);
                 list.add(col);
@@ -318,7 +325,7 @@ public class InputConnection {
         cols.forEach(c -> sqlSB.append(c).append(", "));
     
         sqlSB.append("ROW_NUMBER() OVER (ORDER BY ").append(cols.get(0)).append(") AS rId FROM ");
-        sqlSB.append(Character.toString(_Quoting)).append(tableName).append(Character.toString(_Quoting));
+        sqlSB.append(_schema).append(".").append(tableName);
     
         if (dbType.equalsIgnoreCase("mssql")) {
             sqlSB.append(" ORDER BY rId OFFSET ? ROWS FETCH NEXT ? ROWS ONLY;");
@@ -396,7 +403,7 @@ public class InputConnection {
     }
     
     private int getRowCount(Connection conn, String tableName) throws SQLException {
-        PreparedStatement rowStmt = conn.prepareStatement("SELECT COUNT(*) AS row_count FROM " + tableName);
+        PreparedStatement rowStmt = conn.prepareStatement("SELECT COUNT(*) AS row_count FROM " + _schema + "." + tableName);
         ResultSet rs = rowStmt.executeQuery();
         int row_count = 0;
         if (rs.next()) {
@@ -795,8 +802,8 @@ public class InputConnection {
         }
     }
 
-    public String getSchema() {
-        return _schema;    
+    public String getDatabase() {
+        return _database;    
     }
 
 }

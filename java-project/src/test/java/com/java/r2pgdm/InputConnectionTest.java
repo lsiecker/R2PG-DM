@@ -48,14 +48,14 @@ public class InputConnectionTest {
 
     @Before
     public void connect() {
-        input = new InputConnection("jdbc:sqlite::memory:", "world", "sqlite");
+        input = new InputConnection("jdbc:sqlite::memory:", "world", "sqlite", null);
         try {
             conn = input.connectionPool.getConnection();
             setupDatabase();
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        new OutputConnection(input, "sqlite");
+        new OutputConnection(input, "sqlite", "world", null);
     }
 
     private void setupDatabase() throws SQLException {

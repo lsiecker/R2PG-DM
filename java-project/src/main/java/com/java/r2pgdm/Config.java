@@ -28,6 +28,14 @@ class Config {
     @Setter
     Boolean views;
 
+    @Getter
+    @Setter
+    String schema;
+
+    @Getter
+    @Setter
+    String[] tableNames;
+
     Config(String connString, String driver, String db) {
         this.driver = driver;
         this.database = db;
@@ -40,8 +48,10 @@ class Config {
         this.connectionString = connString;
     }
 
-    Config(Boolean tables, Boolean views) {
+    Config(Boolean tables, Boolean views, String schema, String tableNames) {
         this.tables = tables;
         this.views = views;
+        this.schema = schema;
+        this.tableNames = tableNames.split(",");
     }
 }

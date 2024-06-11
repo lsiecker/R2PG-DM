@@ -28,8 +28,8 @@ public class OutputConnectionTest {
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
         }
-        input = new InputConnection("jdbc:sqlite::memory:", "world", "sqlite");
-        output = new OutputConnection(input, "sqlite");
+        input = new InputConnection("jdbc:sqlite::memory:", "world", "sqlite", null);
+        output = new OutputConnection(input, "sqlite", "world", null);
         try {
             conn = input.connectionPool.getConnection();
             setupDatabase();

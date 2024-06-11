@@ -196,4 +196,11 @@ public class ConnectionPool implements Runnable {
             e.printStackTrace();
         }
     }
+
+    public void printStatistics() {
+        System.out.printf("%-32s: %s\n", "Maximum connections", maxConnections);
+        System.out.printf("%-32s: %s\n", "Initial connections", busyConnections.size());
+        System.out.printf("%-32s: %s\n", "Total connections", totalConnections());
+        System.out.printf("%-32s: %s\n", "Wait if busy", waitIfBusy);
+    }
 }

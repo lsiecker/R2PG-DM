@@ -46,9 +46,9 @@ public class App {
             Config mapping = GetConfiguration(ini.get("mapping"));
 
             // Establish the database connection pool
-            inputConn = new InputConnection(input.connectionString, input.database, input.driver);
-            outputConn = new InputConnection(output.connectionString, output.database, output.driver);
-            new OutputConnection(outputConn, input.driver);
+            inputConn = new InputConnection(input.connectionString, input.database, input.driver, mapping.schema);
+            outputConn = new InputConnection(output.connectionString, output.database, output.driver, null);
+            new OutputConnection(outputConn, input.driver, output.database, mapping.schema);
 
             
             List<String> tables = new ArrayList<>();
@@ -159,7 +159,7 @@ public class App {
         } else if (section.getName().equals("output")) {
             return new Config(section.get("connectionString"), section.get("driver"), section.get("database"));
         } else if (section.getName().equals("mapping")){
-            return new Config(Boolean.parseBoolean(section.get("tables")), Boolean.parseBoolean(section.get("views")));
+            return new Config(Boolean.parseBoolean(section.get("tables")), Boolean.parseBoolean(section.get("views")), section.get("schema"), section.get("tableNames"));
         }
         return new Config(section.get("connectionString"));
     }

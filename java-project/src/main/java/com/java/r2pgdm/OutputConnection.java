@@ -18,18 +18,21 @@ public class OutputConnection {
     private static Connection conn;
     private static ConnectionPool connectionPool;
     private static String driver;
+    private static String _database;
+    private static String _schema;
 
     /**
      * Since output is written to the input connection we reuse the input connection
      * 
      * @param input Connection to the input database
      */
-    public OutputConnection(InputConnection input, String driver2) {
+    public OutputConnection(InputConnection input, String driver, String database, String schema) {
         try {
             conn = input.connectionPool.getConnection();
             connectionPool = input.connectionPool;
-            driver = driver2;
-
+            OutputConnection.driver = driver;
+            this._database =  database;
+            this._schema = schema;
         } catch (SQLException e) {
             e.printStackTrace();
         } finally {
@@ -400,7 +403,7 @@ public class OutputConnection {
 
     private static String buildFetchSql(String tableName, String schema, String driver) {
         String fetchSql = "SELECT * FROM " + tableName + " LIMIT ? OFFSET ?;";
-        if (tableName.contains(".") && isMssqlDriver(driver)) {
+        if (isMssqlDriver(driver)) {
             fetchSql = "SELECT * FROM " + schema + "." + tableName
                     + " ORDER BY (SELECT NULL) OFFSET ? ROWS FETCH NEXT ? ROWS ONLY;";
         } else if (isMssqlDriver(driver)) {
@@ -454,19 +457,18 @@ public class OutputConnection {
             Connection conn_output = outputConn.connectionPool.getConnection();
 
             // Determine the schema and object name
-            String schema = null;
             String tableName = t;
             if (t.contains(".")) {
                 String[] parts = t.split("\\.");
-                schema = parts[0];
                 tableName = parts[1];
             }
 
             // Drop existing table or view
+            // TODO: Check of dit goed gaat als het in dezelfde db is.
             conn_output.createStatement().executeUpdate("DROP TABLE IF EXISTS " + tableName + ";");
 
             // Fetch data from the input database
-            PreparedStatement fetchStmt = conn_input.prepareStatement(buildFetchSql(tableName, schema, driver));
+            PreparedStatement fetchStmt = conn_input.prepareStatement(buildFetchSql(tableName, _schema, driver));
 
             SQLConverter converter = SQLConverterFactory.getConverter(outputConn.dbType);
 
