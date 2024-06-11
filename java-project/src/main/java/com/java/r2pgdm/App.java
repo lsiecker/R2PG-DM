@@ -41,7 +41,7 @@ public class App {
         try {
             Long start = System.currentTimeMillis();
             // Read the configuration from the .ini file.
-            Wini ini = new Wini(new File("configs/mysql/world.ini"));
+            Wini ini = new Wini(new File("configs/mssql/world.ini"));
             Config input = GetConfiguration(ini.get("input"));
             Config output = GetConfiguration(ini.get("output"));
             Config mapping = GetConfiguration(ini.get("mapping"));
@@ -66,8 +66,16 @@ public class App {
                 System.out.println("No tables or views found in the database.");
                 return;
             }
+
+            // Filter only the tables that are in mapping.tableNames. If mapping.tableNames is empty, select all tables.
+            if (mapping.tableNames.length > 0) {
+                if (!("*".equals(mapping.tableNames[0]))) {
+                    tables.retainAll(List.of(mapping.tableNames));
+                }
+            }
             
             List<String> all_tables = new ArrayList<>(tables);
+
 
             Map<String, List<CompositeForeignKey>> joinTables = inputConn.retrieveJoinTableNames(tables);
             tables.removeAll(joinTables.keySet());
