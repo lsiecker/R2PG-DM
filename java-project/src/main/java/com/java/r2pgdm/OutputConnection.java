@@ -18,7 +18,6 @@ public class OutputConnection {
     private static Connection conn;
     private static ConnectionPool connectionPool;
     private static String driver;
-    private static String _database;
     private static String _schema;
 
     /**
@@ -31,8 +30,7 @@ public class OutputConnection {
             conn = input.connectionPool.getConnection();
             connectionPool = input.connectionPool;
             OutputConnection.driver = driver;
-            this._database =  database;
-            this._schema = schema;
+            OutputConnection._schema = schema;
         } catch (SQLException e) {
             e.printStackTrace();
         } finally {
@@ -418,7 +416,8 @@ public class OutputConnection {
         return driver.equals("com.microsoft.sqlserver.jdbc.SQLServerDriver") || driver.equals("mssql-jdbc");
     }
 
-    private static void setFetchStmtParameters(PreparedStatement stmt, int offset, int batchSize, String driver) throws SQLException {
+    private static void setFetchStmtParameters(PreparedStatement stmt, int offset, int batchSize, String driver)
+            throws SQLException {
         if (isMssqlDriver(driver)) {
             stmt.setInt(1, offset);
             stmt.setInt(2, batchSize);
@@ -428,7 +427,8 @@ public class OutputConnection {
         }
     }
 
-    private static String buildCreateTableSql(String tableName, ResultSetMetaData metaData, SQLConverter converter) throws SQLException {
+    private static String buildCreateTableSql(String tableName, ResultSetMetaData metaData, SQLConverter converter)
+            throws SQLException {
         StringBuilder sqlCreate = new StringBuilder("CREATE TABLE " + tableName + " (");
         for (int i = 1; i <= metaData.getColumnCount(); i++) {
             String columnDefinition = converter.convertColumnDefinition(metaData, i);
@@ -443,8 +443,8 @@ public class OutputConnection {
         return converter.convertQuery(sqlCreate.toString());
     }
 
-
-    private static void setInsertStmtParameters(PreparedStatement stmt, ResultSet values, ResultSetMetaData metaData, SQLConverter converter) throws SQLException {
+    private static void setInsertStmtParameters(PreparedStatement stmt, ResultSet values, ResultSetMetaData metaData,
+            SQLConverter converter) throws SQLException {
         for (int i = 1; i <= metaData.getColumnCount(); i++) {
             converter.setPreparedStatementParameter(stmt, values, metaData, i);
         }
@@ -464,7 +464,6 @@ public class OutputConnection {
             }
 
             // Drop existing table or view
-            // TODO: Check of dit goed gaat als het in dezelfde db is.
             conn_output.createStatement().executeUpdate("DROP TABLE IF EXISTS " + tableName + ";");
 
             // Fetch data from the input database
@@ -484,7 +483,7 @@ public class OutputConnection {
                 if (offset == 0) {
                     // Create table on first batch
                     String sqlCreate = buildCreateTableSql(tableName, valuesMd, converter);
-                    
+
                     try {
                         conn_output.createStatement().executeUpdate(sqlCreate.toString());
                     } catch (SQLException e) {

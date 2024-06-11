@@ -29,11 +29,14 @@ public class CompositeForeignKey {
 
     /**
      * Adds a foreign key the this composite foreign key
+     * 
      * @param fk foreign key to be added
-     * @throws IllegalArgumentException if `fk` has a different source or target table than this composite foreign key
+     * @throws IllegalArgumentException if `fk` has a different source or target
+     *                                  table than this composite foreign key
      */
     void addForeignKey(ForeignKey fk) {
-        // If this is an empty composite foreign key, initialize its source and target table to those of `fk`
+        // If this is an empty composite foreign key, initialize its source and target
+        // table to those of `fk`
         if (sourceTable.equals("")) {
             sourceTable = fk.sourceTable;
         }

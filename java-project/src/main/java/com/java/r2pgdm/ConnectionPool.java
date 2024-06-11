@@ -7,12 +7,13 @@ import java.util.Vector;
 
 /**
  * A connection pool implementation for manageing database connections.
- * This class allows efficient reuse of database connections to improve performance.
+ * This class allows efficient reuse of database connections to improve
+ * performance.
  */
 public class ConnectionPool implements Runnable {
-    private String connectionString;    // JDBC connection string
-    private int maxConnections;         // Maximum number of connections allowed
-    private boolean waitIfBusy;         // Flag to indicate whether to wait if all connections are busy
+    private String connectionString; // JDBC connection string
+    private int maxConnections; // Maximum number of connections allowed
+    private boolean waitIfBusy; // Flag to indicate whether to wait if all connections are busy
     public Vector<Connection> availableConnections, busyConnections; // Vectors to store available and busy connections
     private boolean connectionPending = false; // Flag to indicate if a connection is being established
 
@@ -26,12 +27,13 @@ public class ConnectionPool implements Runnable {
     /**
      * Constructs a ConnectionPool with the specified parameters.
      *
-     * @param driver            JDBC driver class name
-     * @param connectionString  JDBC connection string
+     * @param driver             JDBC driver class name
+     * @param connectionString   JDBC connection string
      * @param initialConnections Initial number of connections to create
-     * @param maxConnections    Maximum number of connections allowed in the pool
-     * @param waitIfBusy        Flag to indicate whether to wait if all connections are busy
-     * @throws SQLException     If an SQL exception occurs while creating connections
+     * @param maxConnections     Maximum number of connections allowed in the pool
+     * @param waitIfBusy         Flag to indicate whether to wait if all connections
+     *                           are busy
+     * @throws SQLException If an SQL exception occurs while creating connections
      */
     public ConnectionPool(String driver, String connectionString, int initialconnections,
             int maxConnections, boolean waitIfBusy) throws SQLException {
@@ -55,7 +57,7 @@ public class ConnectionPool implements Runnable {
      * Retrieves a connection from the pool.
      *
      * @return A database Connection object
-     * @throws SQLException If unable to retrieve a connection
+     * @throws SQLException         If unable to retrieve a connection
      * @throws InterruptedExecution If interrupted while waiting for a connection
      */
     public synchronized Connection getConnection() throws SQLException {
@@ -65,15 +67,15 @@ public class ConnectionPool implements Runnable {
             availableConnections.removeElementAt(lastIndex);
 
             if (existingConnection.isClosed()) {
-                  notifyAll(); // Freed up a spot for anybody waiting
-                  return (getConnection());
+                notifyAll(); // Freed up a spot for anybody waiting
+                return (getConnection());
             } else {
-                  busyConnections.addElement(existingConnection);
-                  return (existingConnection);
+                busyConnections.addElement(existingConnection);
+                return (existingConnection);
             }
 
         } else {
-            
+
             if ((totalConnections() < maxConnections) && !connectionPending) {
                 makeBackgroundConnection();
             } else if (!waitIfBusy) {
@@ -86,7 +88,8 @@ public class ConnectionPool implements Runnable {
         } catch (InterruptedException e) {
             // Interrupted while waiting for a connection
             e.printStackTrace();
-        } return (getConnection());
+        }
+        return (getConnection());
     }
 
     /**
@@ -101,7 +104,8 @@ public class ConnectionPool implements Runnable {
     /**
      * Initiates a background thread to create a new connection.
      * 
-     * @throws OutOfMemoryError If unable to start a new thread due to out of memory.
+     * @throws OutOfMemoryError If unable to start a new thread due to out of
+     *                          memory.
      */
     private void makeBackgroundConnection() {
         connectionPending = true;
@@ -155,6 +159,7 @@ public class ConnectionPool implements Runnable {
         System.out.print("\033[2K");
         System.out.print("\rClosed all connections to the server.   ");
     }
+
     /**
      * Closes all connections in the specified vector.
      *

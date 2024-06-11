@@ -119,7 +119,9 @@ public class CompositeForeignKeyTest {
         assertEquals("CompositeForeignKey{foreignKeys=[], sourceTable='', targetTable=''}", cfk.toString());
 
         cfk.addForeignKey(new ForeignKey("source", "target", "sA", "tA"));
-        assertEquals("CompositeForeignKey{foreignKeys=[ForeignKey{sourceTable='source', targetTable='target', sourceAttribute='sA', targetAttribute='tA'}], sourceTable='source', targetTable='target'}", cfk.toString());
+        assertEquals(
+                "CompositeForeignKey{foreignKeys=[ForeignKey{sourceTable='source', targetTable='target', sourceAttribute='sA', targetAttribute='tA'}], sourceTable='source', targetTable='target'}",
+                cfk.toString());
     }
 
 }

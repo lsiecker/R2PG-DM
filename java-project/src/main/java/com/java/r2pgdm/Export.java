@@ -143,7 +143,7 @@ class Export {
         jg.writeEndObject();
 
         jg.writeEndObject();
-        jg.writeRaw('\n'); 
+        jg.writeRaw('\n');
         jg.flush();
     }
 

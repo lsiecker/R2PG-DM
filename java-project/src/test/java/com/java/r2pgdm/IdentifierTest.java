@@ -5,9 +5,6 @@ import org.junit.Test;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -22,7 +19,7 @@ public class IdentifierTest {
     @Before
     public void setup() throws NoSuchFieldException, IllegalAccessException {
         Field field = Identifier.class.getDeclaredField("GlobalID");
-        field.setAccessible( true );
+        field.setAccessible(true);
         field.set(field, new AtomicInteger(0));
     }
 
@@ -38,7 +35,7 @@ public class IdentifierTest {
         int tCount = Runtime.getRuntime().availableProcessors();
         ExecutorService executorService = Executors.newCachedThreadPool();
         ArrayList<Future<ArrayList<Integer>>> threads = new ArrayList<>();
-        ArrayList<Integer> identifiers =  new ArrayList<>();
+        ArrayList<Integer> identifiers = new ArrayList<>();
 
         for (int i = 0; i < tCount; i++) {
             threads.add(executorService.submit(() -> count(10000)));

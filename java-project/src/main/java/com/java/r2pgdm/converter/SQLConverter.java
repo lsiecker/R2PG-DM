@@ -7,7 +7,9 @@ import java.sql.ResultSetMetaData;
 
 public interface SQLConverter {
     String convertQuery(String generalQuery);
-    String convertColumnDefinition(ResultSetMetaData metaData, int columnIndex) throws SQLException;
-    void setPreparedStatementParameter(PreparedStatement stmt, ResultSet values, ResultSetMetaData metaData, int columnIndex) throws SQLException;
-}
 
+    String convertColumnDefinition(ResultSetMetaData metaData, int columnIndex) throws SQLException;
+
+    void setPreparedStatementParameter(PreparedStatement stmt, ResultSet values, ResultSetMetaData metaData,
+            int columnIndex) throws SQLException;
+}
