@@ -325,7 +325,11 @@ public class InputConnection {
         cols.forEach(c -> sqlSB.append(c).append(", "));
     
         sqlSB.append("ROW_NUMBER() OVER (ORDER BY ").append(cols.get(0)).append(") AS rId FROM ");
-        sqlSB.append(_schema).append(".").append(tableName);
+        if (dbType.equalsIgnoreCase("mssql")){
+            sqlSB.append(_schema).append(".").append(tableName);
+        } else {
+            sqlSB.append(tableName);
+        }
     
         if (dbType.equalsIgnoreCase("mssql")) {
             sqlSB.append(" ORDER BY rId OFFSET ? ROWS FETCH NEXT ? ROWS ONLY;");
@@ -403,7 +407,10 @@ public class InputConnection {
     }
     
     private int getRowCount(Connection conn, String tableName) throws SQLException {
-        PreparedStatement rowStmt = conn.prepareStatement("SELECT COUNT(*) AS row_count FROM " + _schema + "." + tableName);
+        PreparedStatement rowStmt = conn.prepareStatement("SELECT COUNT(*) AS row_count FROM " + tableName);
+        if (dbType.equalsIgnoreCase("mssql")) {
+            rowStmt = conn.prepareStatement("SELECT COUNT(*) AS row_count FROM " + _schema + "." + tableName);
+        }
         ResultSet rs = rowStmt.executeQuery();
         int row_count = 0;
         if (rs.next()) {
