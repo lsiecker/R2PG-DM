@@ -18,18 +18,21 @@ public class OutputConnection {
     private static Connection conn;
     private static ConnectionPool connectionPool;
     private static String driver;
+    private static String _database;
+    private static String _schema;
 
     /**
      * Since output is written to the input connection we reuse the input connection
      * 
      * @param input Connection to the input database
      */
-    public OutputConnection(InputConnection input, String driver2) {
+    public OutputConnection(InputConnection input, String driver, String database, String schema) {
         try {
             conn = input.connectionPool.getConnection();
             connectionPool = input.connectionPool;
-            driver = driver2;
-
+            OutputConnection.driver = driver;
+            this._database =  database;
+            this._schema = schema;
         } catch (SQLException e) {
             e.printStackTrace();
         } finally {
@@ -48,7 +51,6 @@ public class OutputConnection {
      * between SQL and Neo4J
      */
     private void dropTablesIfExists() {
-        System.out.println("Dropping old tables");
         try {
             Statement stmt = conn.createStatement();
             stmt.executeUpdate("DROP TABLE IF EXISTS node;");
@@ -56,6 +58,8 @@ public class OutputConnection {
             stmt.executeUpdate("DROP TABLE IF EXISTS property;");
         } catch (SQLException e) {
             e.printStackTrace();
+        } finally {
+            System.out.println("Preparation - Dropped tables.");
         }
     }
 
@@ -67,7 +71,7 @@ public class OutputConnection {
         createNodeTable();
         createEdgeTable();
         createPropertyTable();
-        System.out.println("Mapping - Created tables.");
+        System.out.println("Preparation - Created empty tables.\n");
     }
 
     /**
@@ -154,7 +158,7 @@ public class OutputConnection {
         List<CompositeForeignKey> fks = inputConn.retrieveCompositeForeignKeys(t);
 
         if (fks.size() == 0) {
-            System.out.println("No foreign keys found for table " + t);
+            System.out.println("Mapping - No foreign keys found for table " + t);
             return;
         }
 
@@ -337,7 +341,7 @@ public class OutputConnection {
             e.printStackTrace();
         } finally {
             if (results.size() > 0) {
-                System.out.println("# Nodes: ".concat(results.get(1)));
+                System.out.println("\n# Nodes: ".concat(results.get(1)));
             }
 
             if (results.size() > 1) {
@@ -400,7 +404,7 @@ public class OutputConnection {
 
     private static String buildFetchSql(String tableName, String schema, String driver) {
         String fetchSql = "SELECT * FROM " + tableName + " LIMIT ? OFFSET ?;";
-        if (tableName.contains(".") && isMssqlDriver(driver)) {
+        if (isMssqlDriver(driver)) {
             fetchSql = "SELECT * FROM " + schema + "." + tableName
                     + " ORDER BY (SELECT NULL) OFFSET ? ROWS FETCH NEXT ? ROWS ONLY;";
         } else if (isMssqlDriver(driver)) {
@@ -449,24 +453,22 @@ public class OutputConnection {
     public static void copyTable(InputConnection inputConn, InputConnection outputConn, String t) {
         int totalEntries = 0;
         try {
-            System.out.println("Copying table " + t);
             Connection conn_input = inputConn.connectionPool.getConnection();
             Connection conn_output = outputConn.connectionPool.getConnection();
 
             // Determine the schema and object name
-            String schema = null;
             String tableName = t;
             if (t.contains(".")) {
                 String[] parts = t.split("\\.");
-                schema = parts[0];
                 tableName = parts[1];
             }
 
             // Drop existing table or view
+            // TODO: Check of dit goed gaat als het in dezelfde db is.
             conn_output.createStatement().executeUpdate("DROP TABLE IF EXISTS " + tableName + ";");
 
             // Fetch data from the input database
-            PreparedStatement fetchStmt = conn_input.prepareStatement(buildFetchSql(tableName, schema, driver));
+            PreparedStatement fetchStmt = conn_input.prepareStatement(buildFetchSql(tableName, _schema, driver));
 
             SQLConverter converter = SQLConverterFactory.getConverter(outputConn.dbType);
 
@@ -527,7 +529,7 @@ public class OutputConnection {
 
             outputConn.connectionPool.free(conn_output);
             inputConn.connectionPool.free(conn_input);
-            System.out.println("Table " + t + ": " + totalEntries + " entries copied.");
+            System.out.println("Copying - Table " + t + ": " + totalEntries + " entries copied.");
         } catch (SQLException e) {
             System.out.println("Error copying table " + t);
             e.printStackTrace();

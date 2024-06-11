@@ -11,3 +11,5 @@ driver=DRIVER
 [mapping]
 tables=true
 views=true
+schema=dbo
+tables=*

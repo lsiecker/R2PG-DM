@@ -35,14 +35,14 @@ public class ConfigTest {
 
     @Test
     public void testGetSetTables() {
-        Config config = new Config(true, false);
+        Config config = new Config(true, false, null, "*");
         config.setTables(false);
         assertFalse(config.getTables());
     }
 
     @Test
     public void testGetSetViews() {
-        Config config = new Config(true, false);
+        Config config = new Config(true, false, null, "*");
         config.setViews(true);
         assertTrue(config.getViews());
     }

@@ -146,14 +146,15 @@ public class ConnectionPool implements Runnable {
      * Closes all connections in the pool.
      */
     public synchronized void closeAllConnections() {
-        System.out.print("Closing all connections to the server... \r");
+        System.out.print("\rClosing all connections to the server...");
         closeConnections(availableConnections);
         availableConnections = new Vector<Connection>();
         closeConnections(busyConnections);
         busyConnections = new Vector<Connection>();
-        System.out.print("Closed all connections to the server.   ");
+        // Go back to the beginning of the line and reprint the message
+        System.out.print("\033[2K");
+        System.out.print("\rClosed all connections to the server.   ");
     }
-
     /**
      * Closes all connections in the specified vector.
      *
@@ -195,5 +196,12 @@ public class ConnectionPool implements Runnable {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    public void printStatistics() {
+        System.out.printf("%-32s: %s\n", "Maximum connections", maxConnections);
+        System.out.printf("%-32s: %s\n", "Initial connections", busyConnections.size());
+        System.out.printf("%-32s: %s\n", "Total connections", totalConnections());
+        System.out.printf("%-32s: %s\n", "Wait if busy", waitIfBusy);
     }
 }
