@@ -43,8 +43,10 @@ public class OutputConnectionTest {
         stmt.executeUpdate("PRAGMA foreign_keys = ON");
         stmt.executeUpdate("CREATE TABLE IF NOT EXISTS node (id INTEGER PRIMARY KEY, name TEXT)");
         stmt.executeUpdate("CREATE TABLE IF NOT EXISTS property (id INTEGER PRIMARY KEY, value TEXT)");
-        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS edge (id INTEGER PRIMARY KEY, startNode INTEGER, endNode INTEGER, label TEXT)");
-        stmt.executeUpdate("INSERT INTO edge (startNode, endNode, label) VALUES (1, 2, 'city-country'), (3, 4, 'countrylanguage-country')");
+        stmt.executeUpdate(
+                "CREATE TABLE IF NOT EXISTS edge (id INTEGER PRIMARY KEY, startNode INTEGER, endNode INTEGER, label TEXT)");
+        stmt.executeUpdate(
+                "INSERT INTO edge (startNode, endNode, label) VALUES (1, 2, 'city-country'), (3, 4, 'countrylanguage-country')");
         stmt.close();
 
         // Verify table creation
@@ -92,7 +94,7 @@ public class OutputConnectionTest {
     @Test
     public void outputConnection() {
         List<String> tables = getTableNames();
-        String[] expectedTables = {"node", "property", "edge"};
+        String[] expectedTables = { "node", "property", "edge" };
         assertTrue(tables.containsAll(Arrays.asList(expectedTables)));
     }
 
@@ -106,7 +108,7 @@ public class OutputConnectionTest {
             e.printStackTrace();
         }
         List<String> tables = getTableNames();
-        String[] expectedTables = {"node", "property", "edge"};
+        String[] expectedTables = { "node", "property", "edge" };
         for (String t : expectedTables) {
             assertFalse(tables.contains(t));
         }
@@ -135,10 +137,10 @@ public class OutputConnectionTest {
         labels.forEach((label) -> {
             switch (label) {
                 case "countrylanguage-country":
-                    assertEquals(Integer.valueOf(1), counts.get(label));  // Adjusted based on the setup data
+                    assertEquals(Integer.valueOf(1), counts.get(label)); // Adjusted based on the setup data
                     break;
                 case "city-country":
-                    assertEquals(Integer.valueOf(1), counts.get(label));  // Adjusted based on the setup data
+                    assertEquals(Integer.valueOf(1), counts.get(label)); // Adjusted based on the setup data
                     break;
                 default:
                     fail();

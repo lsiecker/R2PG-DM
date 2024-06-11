@@ -62,7 +62,8 @@ public class MySQLConverter implements SQLConverter {
     }
 
     @Override
-    public void setPreparedStatementParameter(PreparedStatement stmt, ResultSet values, ResultSetMetaData metaData, int columnIndex) throws SQLException {
+    public void setPreparedStatementParameter(PreparedStatement stmt, ResultSet values, ResultSetMetaData metaData,
+            int columnIndex) throws SQLException {
         Object value = values.getObject(columnIndex);
         try {
             if (metaData.getColumnTypeName(columnIndex).equalsIgnoreCase("YEAR") && value != null) {
@@ -83,7 +84,8 @@ public class MySQLConverter implements SQLConverter {
                 stmt.setObject(columnIndex, value);
             }
         } catch (Exception e) {
-            System.err.println("Error setting value for column: " + metaData.getColumnName(columnIndex) + " with value: " + value);
+            System.err.println(
+                    "Error setting value for column: " + metaData.getColumnName(columnIndex) + " with value: " + value);
             throw e;
         }
     }

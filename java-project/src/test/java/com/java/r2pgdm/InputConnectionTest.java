@@ -23,9 +23,9 @@ public class InputConnectionTest {
 
     InputConnection input;
     Connection conn;
-    static String[] expectedTables = {"city", "country", "countrylanguage"};
-    static String[] expectedJoinTable = {"country"};
-    static String[] expectedTablesNodes = {"city", "countrylanguage"};
+    static String[] expectedTables = { "city", "country", "countrylanguage" };
+    static String[] expectedJoinTable = { "country" };
+    static String[] expectedTablesNodes = { "city", "countrylanguage" };
     Map<String, Pair<Integer, List<Integer>>> nrOfCFKs;
     Map<String, List<String>> columnNames;
 
@@ -34,14 +34,16 @@ public class InputConnectionTest {
         nrOfCFKs = new HashMap<>();
         // Update based on foreign key relationships in the world dataset
         nrOfCFKs.put("country", new ImmutablePair<>(0, Arrays.asList(0))); // Country has 0 foreign keys
-        nrOfCFKs.put("city", new ImmutablePair<>(1, Arrays.asList(1)));    // City table has 0 foreign keys
+        nrOfCFKs.put("city", new ImmutablePair<>(1, Arrays.asList(1))); // City table has 0 foreign keys
         nrOfCFKs.put("countrylanguage", new ImmutablePair<>(1, Arrays.asList(1)));
     }
 
     @Before
     public void setFieldNames() {
         columnNames = new HashMap<>();
-        columnNames.put("country", Arrays.asList("Capital", "Code", "Code2", "Continent", "GNP", "GNPOld", "GovernmentForm", "HeadOfState", "IndepYear", "LifeExpectancy", "LocalName", "Name", "Population", "Region", "SurfaceArea"));
+        columnNames.put("country",
+                Arrays.asList("Capital", "Code", "Code2", "Continent", "GNP", "GNPOld", "GovernmentForm", "HeadOfState",
+                        "IndepYear", "LifeExpectancy", "LocalName", "Name", "Population", "Region", "SurfaceArea"));
         columnNames.put("city", Arrays.asList("CountryCode", "District", "ID", "Name", "Population"));
         columnNames.put("countrylanguage", Arrays.asList("CountryCode", "IsOfficial", "Language", "Percentage"));
     }
@@ -61,13 +63,18 @@ public class InputConnectionTest {
     private void setupDatabase() throws SQLException {
         Statement stmt = conn.createStatement();
         stmt.executeUpdate("PRAGMA foreign_keys = ON");
-        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS country (Code TEXT PRIMARY KEY, Name TEXT, Continent TEXT, Region TEXT, SurfaceArea REAL, IndepYear INTEGER, Population INTEGER, LifeExpectancy REAL, GNP REAL, GNPOld REAL, LocalName TEXT, GovernmentForm TEXT, HeadOfState TEXT, Capital INTEGER, Code2 TEXT)");
-        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS city (ID INTEGER PRIMARY KEY, Name TEXT, CountryCode TEXT, District TEXT, Population INTEGER, FOREIGN KEY(CountryCode) REFERENCES country(Code))");
-        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS countrylanguage (CountryCode TEXT, Language TEXT, IsOfficial TEXT, Percentage REAL, PRIMARY KEY (CountryCode, Language), FOREIGN KEY(CountryCode) REFERENCES country(Code))");
+        stmt.executeUpdate(
+                "CREATE TABLE IF NOT EXISTS country (Code TEXT PRIMARY KEY, Name TEXT, Continent TEXT, Region TEXT, SurfaceArea REAL, IndepYear INTEGER, Population INTEGER, LifeExpectancy REAL, GNP REAL, GNPOld REAL, LocalName TEXT, GovernmentForm TEXT, HeadOfState TEXT, Capital INTEGER, Code2 TEXT)");
+        stmt.executeUpdate(
+                "CREATE TABLE IF NOT EXISTS city (ID INTEGER PRIMARY KEY, Name TEXT, CountryCode TEXT, District TEXT, Population INTEGER, FOREIGN KEY(CountryCode) REFERENCES country(Code))");
+        stmt.executeUpdate(
+                "CREATE TABLE IF NOT EXISTS countrylanguage (CountryCode TEXT, Language TEXT, IsOfficial TEXT, Percentage REAL, PRIMARY KEY (CountryCode, Language), FOREIGN KEY(CountryCode) REFERENCES country(Code))");
         stmt.executeUpdate("INSERT INTO country (Code, Name) VALUES ('USA', 'United States'), ('CAN', 'Canada')");
-        stmt.executeUpdate("INSERT INTO city (ID, Name, CountryCode) VALUES (1, 'New York', 'USA'), (2, 'Los Angeles', 'USA'), (3, 'Toronto', 'CAN')");
-        stmt.executeUpdate("INSERT INTO countrylanguage (CountryCode, Language, IsOfficial, Percentage) VALUES ('USA', 'English', 'T', 82.1), ('CAN', 'English', 'T', 56.9), ('CAN', 'French', 'T', 21.4)");
-        
+        stmt.executeUpdate(
+                "INSERT INTO city (ID, Name, CountryCode) VALUES (1, 'New York', 'USA'), (2, 'Los Angeles', 'USA'), (3, 'Toronto', 'CAN')");
+        stmt.executeUpdate(
+                "INSERT INTO countrylanguage (CountryCode, Language, IsOfficial, Percentage) VALUES ('USA', 'English', 'T', 82.1), ('CAN', 'English', 'T', 56.9), ('CAN', 'French', 'T', 21.4)");
+
         stmt.close();
 
         // Verify table creation
