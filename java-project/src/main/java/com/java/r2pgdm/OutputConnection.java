@@ -51,7 +51,6 @@ public class OutputConnection {
      * between SQL and Neo4J
      */
     private void dropTablesIfExists() {
-        System.out.println("Dropping old tables");
         try {
             Statement stmt = conn.createStatement();
             stmt.executeUpdate("DROP TABLE IF EXISTS node;");
@@ -59,6 +58,8 @@ public class OutputConnection {
             stmt.executeUpdate("DROP TABLE IF EXISTS property;");
         } catch (SQLException e) {
             e.printStackTrace();
+        } finally {
+            System.out.println("Preparation - Dropped tables.");
         }
     }
 
@@ -70,7 +71,7 @@ public class OutputConnection {
         createNodeTable();
         createEdgeTable();
         createPropertyTable();
-        System.out.println("Mapping - Created tables.");
+        System.out.println("Preparation - Created empty tables.\n");
     }
 
     /**
@@ -157,7 +158,7 @@ public class OutputConnection {
         List<CompositeForeignKey> fks = inputConn.retrieveCompositeForeignKeys(t);
 
         if (fks.size() == 0) {
-            System.out.println("No foreign keys found for table " + t);
+            System.out.println("Mapping - No foreign keys found for table " + t);
             return;
         }
 
@@ -340,7 +341,7 @@ public class OutputConnection {
             e.printStackTrace();
         } finally {
             if (results.size() > 0) {
-                System.out.println("# Nodes: ".concat(results.get(1)));
+                System.out.println("\n# Nodes: ".concat(results.get(1)));
             }
 
             if (results.size() > 1) {
@@ -452,7 +453,6 @@ public class OutputConnection {
     public static void copyTable(InputConnection inputConn, InputConnection outputConn, String t) {
         int totalEntries = 0;
         try {
-            System.out.println("Copying table " + t);
             Connection conn_input = inputConn.connectionPool.getConnection();
             Connection conn_output = outputConn.connectionPool.getConnection();
 
@@ -529,7 +529,7 @@ public class OutputConnection {
 
             outputConn.connectionPool.free(conn_output);
             inputConn.connectionPool.free(conn_input);
-            System.out.println("Table " + t + ": " + totalEntries + " entries copied.");
+            System.out.println("Copying - Table " + t + ": " + totalEntries + " entries copied.");
         } catch (SQLException e) {
             System.out.println("Error copying table " + t);
             e.printStackTrace();

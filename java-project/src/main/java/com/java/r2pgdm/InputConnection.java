@@ -385,7 +385,7 @@ public class InputConnection {
                     totalNodes += future.get();
                     // Report the progress in the console
                     progressMap.put(tableName, totalNodes);
-                    reportProgress();
+                    // reportProgress();
                 } catch (InterruptedException | ExecutionException e) {
                     e.printStackTrace();
                     System.err.println(sql);
@@ -393,7 +393,7 @@ public class InputConnection {
             }
 
             progressMap.put(tableName, "Done");
-            reportProgress();
+            // reportProgress();
         } catch (Exception e) {
             e.printStackTrace();
             System.out.println(sql);
@@ -672,15 +672,13 @@ public class InputConnection {
 
                 if (edges.size() >= batchSize) {
                     OutputConnection.insertEdgeRows(edges);
-                    // System.out.println("Added " + count + " Edges for table " + tableName);
-
                     edges.clear();
                 }
             }
 
             if (!edges.isEmpty()) {
                 OutputConnection.insertEdgeRows(edges);
-                System.out.println("Added " + count + " Edges for table " + tableName);
+                System.out.println("Mapping - Added " + count + " edges for table " + tableName);
             }
 
             edges.clear();
@@ -788,8 +786,6 @@ public class InputConnection {
                 if (edges.size() >= batchSize) {
                     OutputConnection.insertEdgeRows(edges);
                     OutputConnection.insertPropertyRow(properties);
-                    // System.out.println("Added " + count + " Edges for table " + tableName);
-
                     edges.clear();
                     properties.clear();
                 }

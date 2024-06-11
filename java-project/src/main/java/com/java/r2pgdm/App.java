@@ -11,6 +11,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import org.ini4j.Wini;
 import org.ini4j.Profile.Section;
@@ -40,7 +41,7 @@ public class App {
         try {
             Long start = System.currentTimeMillis();
             // Read the configuration from the .ini file.
-            Wini ini = new Wini(new File("configs/mssql/world.ini"));
+            Wini ini = new Wini(new File("configs/mysql/world.ini"));
             Config input = GetConfiguration(ini.get("input"));
             Config output = GetConfiguration(ini.get("output"));
             Config mapping = GetConfiguration(ini.get("mapping"));
@@ -83,12 +84,13 @@ public class App {
             
             // Copy the necessary tables from the input to the output database
             if (!noCopy) {
+                System.out.println("Copying - Tables: " + all_tables);
                 all_tables.forEach(t -> tFinished.add(executorService.submit(() -> OutputConnection.copyTable(inputConn, outputConn, t))));
                 awaitTableCompletion(tFinished);
             }
 
-
             // Create nodes and their properties
+            System.out.println("\nMapping - Creating nodes with properties for tables: " + tables);
             tables.forEach(t -> tFinished.add(executorService.submit(() -> {
                 try {
                     inputConn.createNodesAndProperties(t);
@@ -97,17 +99,19 @@ public class App {
                 }
             })));
             awaitTableCompletion(tFinished); // Wait for nodes and properties to finish creating
-            System.out.println("Nodes with properties created");
+            System.out.println("Mapping - Nodes with properties created");
 
             // Create edges without properties
+            System.out.println("Mapping - Creating edges without properties");
             tables.forEach(t -> tFinished.add(executorService.submit(() -> OutputConnection.createEdges(inputConn, outputConn, t))));
             awaitTableCompletion(tFinished); // Wait for edges to finish creating
-            System.out.println("Edges created");
+            System.out.println("Mapping - Edges created");
 
             // Create edges with properties
+            System.out.println("Mapping - Creating edges without properties for tables: " + joinTables.keySet());
             joinTables.forEach((k,v) -> tFinished.add(executorService.submit(()-> OutputConnection.createEdgesAndProperties(outputConn, k, v))));
             awaitTableCompletion(tFinished);
-            System.out.println("Edges with properties created");
+            System.out.println("Mapping - Edges with properties created");
 
             if (!noCopy) {
                 all_tables.forEach(t -> tFinished.add(executorService.submit(() -> OutputConnection.drop_tables_output(t))));
@@ -117,14 +121,16 @@ public class App {
             // Print the statistics
             OutputConnection.printStatistics();
             Long end = System.currentTimeMillis();
-            System.out.println("Finished mapping in " + (end-start)/60000d + " minutes.");
+            long elapsedTime = end - start;
+            System.out.printf("\nFinished mapping in %02d:%02d:%02d.%02d%n", TimeUnit.MILLISECONDS.toHours(elapsedTime), TimeUnit.MILLISECONDS.toMinutes(elapsedTime), TimeUnit.MILLISECONDS.toSeconds(elapsedTime), TimeUnit.MILLISECONDS.toMillis(elapsedTime));
 
             // Generate CSV files
-            System.out.println("Creating CSV files for Nodes, Properties and Edges");
+            System.out.println("\nOutput - Creating CSV files for Nodes, Properties and Edges");
             Export.generateCSVs("exports");
+            System.out.println("Output - CSV files generated");
             // Export.generateCombinedGraph("exports", outputConn);
             Export.generateJSONGraph("exports", outputConn);
-            System.out.println("CSV files generated");
+            System.out.println("Output - JSON file generated");
 
         } catch (IOException e) {
             e.printStackTrace();
