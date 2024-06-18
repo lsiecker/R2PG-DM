@@ -28,7 +28,7 @@ public class MSSQLConverter implements SQLConverter {
         int decimalDigits = metaData.getScale(columnIndex);
         boolean isNullable = metaData.isNullable(columnIndex) == ResultSetMetaData.columnNullable;
 
-        if (columnName.contains(" ")) {
+        if (columnName.contains(" ") | columnName.equalsIgnoreCase("TOP") | columnName.equalsIgnoreCase("FUNCTION")) {
             columnName = "[" + columnName + "]";
         }
 
@@ -38,12 +38,12 @@ public class MSSQLConverter implements SQLConverter {
             columnType = "datetime";
         } else if (columnType.contains("year")) {
             columnType = "int";
-        } else if (columnType.contains("blob")) {
-            columnType = "varbinary(max)";
+            // } else if (columnType.contains("blob")) {
+            // columnType = "varbinary(max)";
         } else if (columnType.contains("geometry")) {
             columnType = "geography";
-        } else if (columnType.contains("nvarchar") & (columnSize > 7999)) {
-            columnType = "varbinary(max)";
+            // } else if (columnType.contains("nvarchar") & (columnSize > 7999)) {
+            // columnType = "varbinary(max)";
         }
 
         StringBuilder columnDefinition = new StringBuilder(columnName + " " + columnType);

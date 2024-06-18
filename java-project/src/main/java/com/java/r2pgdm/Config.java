@@ -36,6 +36,10 @@ class Config {
     @Setter
     String[] tableNames;
 
+    @Getter
+    @Setter
+    Boolean deleteCopy;
+
     Config(String connString, String driver, String db) {
         this.driver = driver;
         this.database = db;
@@ -48,10 +52,11 @@ class Config {
         this.connectionString = connString;
     }
 
-    Config(Boolean tables, Boolean views, String schema, String tableNames) {
+    Config(Boolean tables, Boolean views, String schema, String tableNames, Boolean deleteCopy) {
         this.tables = tables;
         this.views = views;
         this.schema = schema;
         this.tableNames = tableNames.split(",");
+        this.deleteCopy = deleteCopy;
     }
 }
