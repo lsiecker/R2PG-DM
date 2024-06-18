@@ -174,8 +174,9 @@ public class App {
             Long end = System.currentTimeMillis();
             long elapsedTime = end - start;
             System.out.printf("\nFinished mapping in %02d:%02d:%02d.%02d%n", TimeUnit.MILLISECONDS.toHours(elapsedTime),
-                    TimeUnit.MILLISECONDS.toMinutes(elapsedTime), TimeUnit.MILLISECONDS.toSeconds(elapsedTime),
-                    TimeUnit.MILLISECONDS.toMillis(elapsedTime));
+                    TimeUnit.MILLISECONDS.toMinutes(elapsedTime) % 60,
+                    TimeUnit.MILLISECONDS.toSeconds(elapsedTime) % 60,
+                    TimeUnit.MILLISECONDS.toMillis(elapsedTime) % 1000);
 
             // Generate output files
             System.out.println("\nOutput - Creating CSV files for Nodes, Properties and Edges");
