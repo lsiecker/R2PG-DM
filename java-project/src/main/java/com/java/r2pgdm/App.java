@@ -2,6 +2,7 @@ package com.java.r2pgdm;
 
 import java.io.File;
 import java.io.IOException;
+import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -18,6 +19,8 @@ import java.util.stream.Collectors;
 import org.ini4j.Wini;
 import org.ini4j.Profile.Section;
 
+import com.java.r2pgdm.schema.PGSchema;
+
 /**
  * Main application class for R2PG-DM (Relational Database to Property Graph
  * Direct Mapping). This main class orchestrates the process of mapping the
@@ -26,6 +29,7 @@ import org.ini4j.Profile.Section;
 public class App {
     public static PreparedStatement _statementEdges;
     public static InputConnection inputConn, outputConn;
+    public static DatabaseMetaData metaData;
 
     /**
      * Main method to start the data migration process.
@@ -48,6 +52,7 @@ public class App {
         });
 
         try {
+
             // Start the timer to keep track of the duration of the mapping process.
             Long start = System.currentTimeMillis();
 
@@ -65,6 +70,11 @@ public class App {
             new OutputConnection(outputConn, input.driver, output.database, mapping.schema);
 
             List<String> tables = new ArrayList<>();
+            try {
+                metaData = inputConn.connectionPool.getConnection().getMetaData();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
 
             // If tables should be included in the mapping, retrieve the table names from
             // the input database.
@@ -107,6 +117,12 @@ public class App {
             // tables list.
             Map<String, List<CompositeForeignKey>> joinTables = inputConn.retrieveJoinTableNames(tables);
             tables.removeAll(joinTables.keySet());
+
+            // From tables get a list of foreign keys
+            List<CompositeForeignKey> foreignKeys = new ArrayList<>();
+            tables.forEach(t -> {
+                foreignKeys.addAll(inputConn.retrieveCompositeForeignKeys(t));
+            });
 
             // Create executor service to run the threads
             // int availableProcessors = Runtime.getRuntime().availableProcessors();
@@ -184,6 +200,8 @@ public class App {
             System.out.println("Output - CSV files generated");
             Export.generateJSONGraph("exports", outputConn);
             System.out.println("Output - JSON file generated");
+            new PGSchema(mapping.schema, metaData, outputConn, tables, joinTables, foreignKeys).exportGraph("exports");
+            System.out.println("Output - Schema file generated");
 
         } catch (IOException e) {
             e.printStackTrace();
