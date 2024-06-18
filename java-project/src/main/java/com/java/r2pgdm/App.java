@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -12,13 +13,14 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import org.ini4j.Wini;
 import org.ini4j.Profile.Section;
 
 /**
  * Main application class for R2PG-DM (Relational Database to Property Graph
- * Direct Mapping). This main class orchestrates the process of mapping the 
+ * Direct Mapping). This main class orchestrates the process of mapping the
  * data from relational to graph database.
  */
 public class App {
@@ -34,8 +36,14 @@ public class App {
         // Shutdown hook to close database connections when the application is exits.
         Runtime.getRuntime().addShutdownHook(new Thread() {
             public void run() {
-                inputConn.connectionPool.closeAllConnections();
-                outputConn.connectionPool.closeAllConnections();
+                if (inputConn.connectionPool.availableConnections.size()
+                        + inputConn.connectionPool.busyConnections.size() > 0) {
+                    inputConn.connectionPool.closeAllConnections();
+                }
+                if (outputConn.connectionPool.availableConnections.size()
+                        + outputConn.connectionPool.busyConnections.size() > 0) {
+                    outputConn.connectionPool.closeAllConnections();
+                }
             }
         });
 
@@ -58,12 +66,14 @@ public class App {
 
             List<String> tables = new ArrayList<>();
 
-            // If tables should be included in the mapping, retrieve the table names from the input database.
+            // If tables should be included in the mapping, retrieve the table names from
+            // the input database.
             if (mapping.tables) {
                 tables.addAll(inputConn.retrieveTableNames());
             }
 
-            // If views should be included in the mapping, retrieve the view names from the input database.
+            // If views should be included in the mapping, retrieve the view names from the
+            // input database.
             if (mapping.views) {
                 tables.addAll(inputConn.retrieveViewNames());
             }
@@ -78,18 +88,33 @@ public class App {
             if (mapping.tableNames.length > 0) {
                 // If the first element is "*", then we don't need to filter the tables.
                 if (!("*".equals(mapping.tableNames[0]))) {
-                    tables.retainAll(List.of(mapping.tableNames));
+                    // If tables have a schema, then compare the tableNames with schema,
+                    // otherwise, compare the tableNames without schema.
+                    if (!tables.get(0).contains(".")) {
+                        tables.retainAll(Arrays.stream(mapping.tableNames).collect(Collectors.toList()));
+                    } else {
+                        tables.retainAll(
+                                Arrays.stream(mapping.tableNames).map(tableName -> mapping.schema + "." + tableName)
+                                        .collect(Collectors.toList()));
+                    }
                 }
             }
 
             // Create a copy of the tables list to keep track of all tables.
             List<String> all_tables = new ArrayList<>(tables);
 
-            // Retrieve the join tables from the input database and remove them from the tables list.
+            // Retrieve the join tables from the input database and remove them from the
+            // tables list.
             Map<String, List<CompositeForeignKey>> joinTables = inputConn.retrieveJoinTableNames(tables);
             tables.removeAll(joinTables.keySet());
 
             // Create executor service to run the threads
+            // int availableProcessors = Runtime.getRuntime().availableProcessors();
+            // int numThreads = availableProcessors - 2; // Reserve 1 core for normal tasks
+            // if (numThreads < 1) {
+            // numThreads = 1; // Minimum of 1 thread
+            // }
+            // ExecutorService executorService = Executors.newFixedThreadPool(numThreads);
             ExecutorService executorService = Executors.newCachedThreadPool();
             ArrayList<Future<?>> tFinished = new ArrayList<>();
 
@@ -136,7 +161,7 @@ public class App {
             System.out.println("Mapping - Edges with properties created");
 
             // Drop the tables from the output database if they were copied
-            if (!noCopy) {
+            if (!noCopy && mapping.deleteCopy) {
                 all_tables.forEach(
                         t -> tFinished.add(executorService.submit(() -> OutputConnection.drop_tables_output(t))));
                 awaitTableCompletion(tFinished);
@@ -161,6 +186,8 @@ public class App {
 
         } catch (IOException e) {
             e.printStackTrace();
+        } finally {
+            System.exit(0);
         }
     }
 
@@ -195,7 +222,7 @@ public class App {
             return new Config(section.get("connectionString"), section.get("driver"), section.get("database"));
         } else if (section.getName().equals("mapping")) {
             return new Config(Boolean.parseBoolean(section.get("tables")), Boolean.parseBoolean(section.get("views")),
-                    section.get("schema"), section.get("tableNames"));
+                    section.get("schema"), section.get("tableNames"), Boolean.parseBoolean(section.get("deleteCopy")));
         }
         return new Config(section.get("connectionString"));
     }

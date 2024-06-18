@@ -473,7 +473,7 @@ public class OutputConnection {
 
             int offset = 0;
             boolean moreData = true;
-            int batchSize = 100000;
+            int batchSize = 10000;
 
             while (moreData) {
                 setFetchStmtParameters(fetchStmt, offset, batchSize, driver);
@@ -516,6 +516,7 @@ public class OutputConnection {
                     insertStmt.addBatch();
                     if (++batchCount % batchSize == 0) {
                         insertStmt.executeBatch();
+                        System.out.println("Copying - " + tableName + " : " + totalEntries + " entries copied.");
                     }
                     totalEntries++;
                 }
