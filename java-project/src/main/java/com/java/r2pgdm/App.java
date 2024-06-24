@@ -200,7 +200,9 @@ public class App {
             System.out.println("Output - CSV files generated");
             Export.generateJSONGraph("exports", outputConn);
             System.out.println("Output - JSON file generated");
-            new PGSchema(mapping.schema, metaData, outputConn, tables, joinTables, foreignKeys).exportGraph("exports");
+            PGSchema schema = new PGSchema(mapping.schema, metaData, outputConn, tables, joinTables, foreignKeys);
+            schema.validateSchema();
+            schema.exportGraph("exports");
             System.out.println("Output - Schema file generated");
 
         } catch (IOException e) {

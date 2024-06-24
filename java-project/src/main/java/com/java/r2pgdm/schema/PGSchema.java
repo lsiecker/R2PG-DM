@@ -10,6 +10,10 @@ import java.sql.ResultSet;
 import java.util.List;
 import java.util.Map;
 
+import org.antlr.v4.runtime.CharStreams;
+import org.antlr.v4.runtime.CommonTokenStream;
+import org.antlr.v4.runtime.tree.ParseTree;
+
 import org.apache.commons.io.FileUtils;
 
 import com.java.r2pgdm.CompositeForeignKey;
@@ -235,6 +239,25 @@ public class PGSchema {
             FileUtils.writeStringToFile(new File(filePath + "\\schema.pgs"), schema, "UTF-8");
         } catch (IOException e) {
             e.printStackTrace();
+        }
+    }
+
+    public void validateSchema() {
+        // Validate schema
+        String schema = this.schema;
+
+        pgsLexer lexer = new pgsLexer(CharStreams.fromString(schema));
+
+        CommonTokenStream tokens = new CommonTokenStream(lexer);
+        pgsParser parser = new pgsParser(tokens);
+        ParseTree tree = parser.pgs();
+
+        // Check if there is an error, if not it is valid
+        if (parser.getNumberOfSyntaxErrors() > 0) {
+            System.err.println("\nOutput - Syntax errors found in schema");
+            System.out.println(tree.toStringTree(parser));
+        } else {
+            System.out.println("\nOutput - Schema is valid");
         }
     }
 
