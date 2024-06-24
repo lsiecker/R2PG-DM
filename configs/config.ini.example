@@ -12,4 +12,5 @@ driver=DRIVER
 tables=true
 views=true
 schema=dbo
-tables=*
+tableNames=*
+deleteCopy=false

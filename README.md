@@ -1,6 +1,20 @@
+[![GitHub Release](https://img.shields.io/github/release/lsiecker/R2PG-DM.svg?style=flat)]()
+![GitHub last commit](https://img.shields.io/github/last-commit/lsiecker/r2pg-dm)
+![GitHub commit activity](https://img.shields.io/github/commit-activity/w/lsiecker/r2pg-dm)
+[![GitHub commits since](https://img.shields.io/github/commits-since/lsiecker/R2PG-DM/latest)]()
+[![Issues](https://img.shields.io/github/issues-raw/lsiecker/R2PG-DM.svg?maxAge=25000)](https://github.com/lsiecker/R2PG-DM/issues)
+[![GitHub pull requests](https://img.shields.io/github/issues-pr/cdnjs/cdnjs.svg?style=flat)]()
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/lsiecker/r2pg-dm/maven.yml)
+
+![MicrosoftSQLServer](https://img.shields.io/badge/Microsoft%20SQL%20Server-CC2927?style=for-the-badge&logo=microsoft%20sql%20server&logoColor=white)
+![MySQL](https://img.shields.io/badge/mysql-4479A1.svg?style=for-the-badge&logo=mysql&logoColor=white) 
+<!-- ![SQLite](https://img.shields.io/badge/sqlite-%2307405e.svg?style=for-the-badge&logo=sqlite&logoColor=white) 
+![Postgres](https://img.shields.io/badge/postgres-%23316192.svg?style=for-the-badge&logo=postgresql&logoColor=white) -->
+
+
 # R2PG-DM
 
-R2PG-DM is a powerful tool that allows you to construct property graphs from relational databases. This application is designed to be flexible, efficient, and easy to use.
+R2PG-DM is a powerful tool that allows you to construct property graphs from relational databases. 
 
 ## Table of Contents
 
@@ -17,6 +31,7 @@ R2PG-DM is a powerful tool that allows you to construct property graphs from rel
 - Convert relational databases into property graphs
 - Support for MySQL and Microsoft SQL Server databases
 - Generate CSV files for Neo4j graph database
+- Generate schema following PG-Schema language
 
 ## Installation
 
@@ -32,17 +47,34 @@ Before using R2PG-DM, you need to set up a `config.ini` file to specify the inpu
 
 ```
 [input]
-connectionString=
-driver=sqlite
+connectionString=jdbc:DRIVER://IP_ADDRESS:PORT/DATABASE_NAME?user=USER&password=PASSWORD
+database=DATABASE_NAME
+driver=DRIVER
+
+[output]
+connectionString=jdbc:DRIVER://IP_ADDRESS:PORT/DATABASE_NAME?user=USER&password=PASSWORD
+database=DATABASE_NAME
+driver=DRIVER
+
+[mapping]
+tables=true
+views=true
+schema=dbo
+tableNames=*
+deleteCopy=false
 ```
 
-The connectionString should be in the JDBC connection string format. You can find more information about this format [here]( https://vladmihalcea.com/jdbc-driver-connection-url-strings/).
+The connectionString should be in the JDBC connection string format. You can find more information about this format [here]( https://vladmihalcea.com/jdbc-driver-connection-url-strings/). Furthermore there are some settings regarding the mapping. Boolean values for tables and views determine wheter or not to take into account these table types. Keep in mind that views do not include foreign key information, only column information. Schema is the schema in the source database that needs to be mapped. tableNames is a parameter that can be filled with several table/view names to specify that mapping. The names should be seperated with a comma **not** in quotes: `country,countrylanguage,city`.
 
 ## Usage
 To use R2PG-DM, follow these steps:
 
 1. Set up your `config.ini` file as described in the [Configuration](#configuration) section.
 2. Run the application
+3. View the output in the output folder and in your target database tables. The output consists of 
+- `nodes.csv`, `edges.csv`, `properties.csv`: The property graph divided in the different information types.
+- `combined.json`: All information from the nodes, edges and properties combined in one json to be imported by AvantGraph. 
+- `schema.pgs`: Schema following PG-Schema language.
 
 ## Neo4j Integration
 
