@@ -1,9 +1,8 @@
 package com.java.r2pgdm.schema;
 
-// Generated from pgs.g4 by ANTLR 4.3
+// Generated from antrl/pgs.g4 by ANTLR 4.13.1
 
 import org.antlr.v4.runtime.ParserRuleContext;
-import org.antlr.v4.runtime.misc.NotNull;
 import org.antlr.v4.runtime.tree.ErrorNode;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
@@ -13,6 +12,7 @@ import org.antlr.v4.runtime.tree.TerminalNode;
  * subset
  * of the available methods.
  */
+@SuppressWarnings("CheckReturnValue")
 public class pgsBaseListener implements pgsListener {
 	/**
 	 * {@inheritDoc}
@@ -22,7 +22,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void enterPropertySpec(@NotNull pgsParser.PropertySpecContext ctx) {
+	public void enterPgs(pgsParser.PgsContext ctx) {
 	}
 
 	/**
@@ -33,7 +33,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void exitPropertySpec(@NotNull pgsParser.PropertySpecContext ctx) {
+	public void exitPgs(pgsParser.PgsContext ctx) {
 	}
 
 	/**
@@ -44,7 +44,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void enterTypeName(@NotNull pgsParser.TypeNameContext ctx) {
+	public void enterCreateType(pgsParser.CreateTypeContext ctx) {
 	}
 
 	/**
@@ -55,7 +55,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void exitTypeName(@NotNull pgsParser.TypeNameContext ctx) {
+	public void exitCreateType(pgsParser.CreateTypeContext ctx) {
 	}
 
 	/**
@@ -66,7 +66,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void enterLabelSpec(@NotNull pgsParser.LabelSpecContext ctx) {
+	public void enterCreateNodeType(pgsParser.CreateNodeTypeContext ctx) {
 	}
 
 	/**
@@ -77,7 +77,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void exitLabelSpec(@NotNull pgsParser.LabelSpecContext ctx) {
+	public void exitCreateNodeType(pgsParser.CreateNodeTypeContext ctx) {
 	}
 
 	/**
@@ -88,7 +88,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void enterCreateType(@NotNull pgsParser.CreateTypeContext ctx) {
+	public void enterCreateEdgeType(pgsParser.CreateEdgeTypeContext ctx) {
 	}
 
 	/**
@@ -99,7 +99,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void exitCreateType(@NotNull pgsParser.CreateTypeContext ctx) {
+	public void exitCreateEdgeType(pgsParser.CreateEdgeTypeContext ctx) {
 	}
 
 	/**
@@ -110,7 +110,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void enterGraphTypeDefinition(@NotNull pgsParser.GraphTypeDefinitionContext ctx) {
+	public void enterCreateGraphType(pgsParser.CreateGraphTypeContext ctx) {
 	}
 
 	/**
@@ -121,7 +121,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void exitGraphTypeDefinition(@NotNull pgsParser.GraphTypeDefinitionContext ctx) {
+	public void exitCreateGraphType(pgsParser.CreateGraphTypeContext ctx) {
 	}
 
 	/**
@@ -132,7 +132,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void enterCreateEdgeType(@NotNull pgsParser.CreateEdgeTypeContext ctx) {
+	public void enterGraphType(pgsParser.GraphTypeContext ctx) {
 	}
 
 	/**
@@ -143,7 +143,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void exitCreateEdgeType(@NotNull pgsParser.CreateEdgeTypeContext ctx) {
+	public void exitGraphType(pgsParser.GraphTypeContext ctx) {
 	}
 
 	/**
@@ -154,7 +154,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void enterMiddleType(@NotNull pgsParser.MiddleTypeContext ctx) {
+	public void enterTypeForm(pgsParser.TypeFormContext ctx) {
 	}
 
 	/**
@@ -165,7 +165,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void exitMiddleType(@NotNull pgsParser.MiddleTypeContext ctx) {
+	public void exitTypeForm(pgsParser.TypeFormContext ctx) {
 	}
 
 	/**
@@ -176,7 +176,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void enterCreateNodeType(@NotNull pgsParser.CreateNodeTypeContext ctx) {
+	public void enterGraphTypeDefinition(pgsParser.GraphTypeDefinitionContext ctx) {
 	}
 
 	/**
@@ -187,7 +187,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void exitCreateNodeType(@NotNull pgsParser.CreateNodeTypeContext ctx) {
+	public void exitGraphTypeDefinition(pgsParser.GraphTypeDefinitionContext ctx) {
 	}
 
 	/**
@@ -198,7 +198,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void enterEdgeType(@NotNull pgsParser.EdgeTypeContext ctx) {
+	public void enterElementTypes(pgsParser.ElementTypesContext ctx) {
 	}
 
 	/**
@@ -209,7 +209,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void exitEdgeType(@NotNull pgsParser.EdgeTypeContext ctx) {
+	public void exitElementTypes(pgsParser.ElementTypesContext ctx) {
 	}
 
 	/**
@@ -220,7 +220,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void enterPropertyType(@NotNull pgsParser.PropertyTypeContext ctx) {
+	public void enterElementType(pgsParser.ElementTypeContext ctx) {
 	}
 
 	/**
@@ -231,7 +231,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void exitPropertyType(@NotNull pgsParser.PropertyTypeContext ctx) {
+	public void exitElementType(pgsParser.ElementTypeContext ctx) {
 	}
 
 	/**
@@ -242,7 +242,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void enterProperty(@NotNull pgsParser.PropertyContext ctx) {
+	public void enterNodeType(pgsParser.NodeTypeContext ctx) {
 	}
 
 	/**
@@ -253,7 +253,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void exitProperty(@NotNull pgsParser.PropertyContext ctx) {
+	public void exitNodeType(pgsParser.NodeTypeContext ctx) {
 	}
 
 	/**
@@ -264,7 +264,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void enterLabelName(@NotNull pgsParser.LabelNameContext ctx) {
+	public void enterEdgeType(pgsParser.EdgeTypeContext ctx) {
 	}
 
 	/**
@@ -275,7 +275,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void exitLabelName(@NotNull pgsParser.LabelNameContext ctx) {
+	public void exitEdgeType(pgsParser.EdgeTypeContext ctx) {
 	}
 
 	/**
@@ -286,7 +286,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void enterPgs(@NotNull pgsParser.PgsContext ctx) {
+	public void enterMiddleType(pgsParser.MiddleTypeContext ctx) {
 	}
 
 	/**
@@ -297,7 +297,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void exitPgs(@NotNull pgsParser.PgsContext ctx) {
+	public void exitMiddleType(pgsParser.MiddleTypeContext ctx) {
 	}
 
 	/**
@@ -308,7 +308,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void enterKey(@NotNull pgsParser.KeyContext ctx) {
+	public void enterEndpointType(pgsParser.EndpointTypeContext ctx) {
 	}
 
 	/**
@@ -319,7 +319,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void exitKey(@NotNull pgsParser.KeyContext ctx) {
+	public void exitEndpointType(pgsParser.EndpointTypeContext ctx) {
 	}
 
 	/**
@@ -330,7 +330,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void enterElementTypes(@NotNull pgsParser.ElementTypesContext ctx) {
+	public void enterLabelPropertySpec(pgsParser.LabelPropertySpecContext ctx) {
 	}
 
 	/**
@@ -341,7 +341,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void exitElementTypes(@NotNull pgsParser.ElementTypesContext ctx) {
+	public void exitLabelPropertySpec(pgsParser.LabelPropertySpecContext ctx) {
 	}
 
 	/**
@@ -352,7 +352,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void enterGraphType(@NotNull pgsParser.GraphTypeContext ctx) {
+	public void enterLabelSpec(pgsParser.LabelSpecContext ctx) {
 	}
 
 	/**
@@ -363,7 +363,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void exitGraphType(@NotNull pgsParser.GraphTypeContext ctx) {
+	public void exitLabelSpec(pgsParser.LabelSpecContext ctx) {
 	}
 
 	/**
@@ -374,7 +374,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void enterEndpointType(@NotNull pgsParser.EndpointTypeContext ctx) {
+	public void enterPropertySpec(pgsParser.PropertySpecContext ctx) {
 	}
 
 	/**
@@ -385,7 +385,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void exitEndpointType(@NotNull pgsParser.EndpointTypeContext ctx) {
+	public void exitPropertySpec(pgsParser.PropertySpecContext ctx) {
 	}
 
 	/**
@@ -396,7 +396,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void enterNodeType(@NotNull pgsParser.NodeTypeContext ctx) {
+	public void enterProperties(pgsParser.PropertiesContext ctx) {
 	}
 
 	/**
@@ -407,7 +407,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void exitNodeType(@NotNull pgsParser.NodeTypeContext ctx) {
+	public void exitProperties(pgsParser.PropertiesContext ctx) {
 	}
 
 	/**
@@ -418,7 +418,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void enterTypeForm(@NotNull pgsParser.TypeFormContext ctx) {
+	public void enterProperty(pgsParser.PropertyContext ctx) {
 	}
 
 	/**
@@ -429,7 +429,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void exitTypeForm(@NotNull pgsParser.TypeFormContext ctx) {
+	public void exitProperty(pgsParser.PropertyContext ctx) {
 	}
 
 	/**
@@ -440,7 +440,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void enterCreateGraphType(@NotNull pgsParser.CreateGraphTypeContext ctx) {
+	public void enterPropertyType(pgsParser.PropertyTypeContext ctx) {
 	}
 
 	/**
@@ -451,7 +451,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void exitCreateGraphType(@NotNull pgsParser.CreateGraphTypeContext ctx) {
+	public void exitPropertyType(pgsParser.PropertyTypeContext ctx) {
 	}
 
 	/**
@@ -462,7 +462,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void enterLabelPropertySpec(@NotNull pgsParser.LabelPropertySpecContext ctx) {
+	public void enterKey(pgsParser.KeyContext ctx) {
 	}
 
 	/**
@@ -473,7 +473,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void exitLabelPropertySpec(@NotNull pgsParser.LabelPropertySpecContext ctx) {
+	public void exitKey(pgsParser.KeyContext ctx) {
 	}
 
 	/**
@@ -484,7 +484,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void enterDash(@NotNull pgsParser.DashContext ctx) {
+	public void enterLabelName(pgsParser.LabelNameContext ctx) {
 	}
 
 	/**
@@ -495,7 +495,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void exitDash(@NotNull pgsParser.DashContext ctx) {
+	public void exitLabelName(pgsParser.LabelNameContext ctx) {
 	}
 
 	/**
@@ -506,7 +506,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void enterElementType(@NotNull pgsParser.ElementTypeContext ctx) {
+	public void enterTypeName(pgsParser.TypeNameContext ctx) {
 	}
 
 	/**
@@ -517,7 +517,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void exitElementType(@NotNull pgsParser.ElementTypeContext ctx) {
+	public void exitTypeName(pgsParser.TypeNameContext ctx) {
 	}
 
 	/**
@@ -528,7 +528,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void enterRightArrowHead(@NotNull pgsParser.RightArrowHeadContext ctx) {
+	public void enterDash(pgsParser.DashContext ctx) {
 	}
 
 	/**
@@ -539,7 +539,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void exitRightArrowHead(@NotNull pgsParser.RightArrowHeadContext ctx) {
+	public void exitDash(pgsParser.DashContext ctx) {
 	}
 
 	/**
@@ -550,7 +550,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void enterProperties(@NotNull pgsParser.PropertiesContext ctx) {
+	public void enterRightArrowHead(pgsParser.RightArrowHeadContext ctx) {
 	}
 
 	/**
@@ -561,7 +561,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void exitProperties(@NotNull pgsParser.PropertiesContext ctx) {
+	public void exitRightArrowHead(pgsParser.RightArrowHeadContext ctx) {
 	}
 
 	/**
@@ -572,7 +572,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void enterEveryRule(@NotNull ParserRuleContext ctx) {
+	public void enterEveryRule(ParserRuleContext ctx) {
 	}
 
 	/**
@@ -583,7 +583,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void exitEveryRule(@NotNull ParserRuleContext ctx) {
+	public void exitEveryRule(ParserRuleContext ctx) {
 	}
 
 	/**
@@ -594,7 +594,7 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void visitTerminal(@NotNull TerminalNode node) {
+	public void visitTerminal(TerminalNode node) {
 	}
 
 	/**
@@ -605,6 +605,6 @@ public class pgsBaseListener implements pgsListener {
 	 * </p>
 	 */
 	@Override
-	public void visitErrorNode(@NotNull ErrorNode node) {
+	public void visitErrorNode(ErrorNode node) {
 	}
 }
