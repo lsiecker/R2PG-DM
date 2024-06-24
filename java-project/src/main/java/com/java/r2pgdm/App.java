@@ -57,7 +57,7 @@ public class App {
             Long start = System.currentTimeMillis();
 
             // Read the configuration from the .ini file.
-            Wini ini = new Wini(new File("configs/mssql/world.ini"));
+            Wini ini = new Wini(new File("configs/mssql/sakila.ini"));
             Config input = GetConfiguration(ini.get("input"));
             Config output = GetConfiguration(ini.get("output"));
             Config mapping = GetConfiguration(ini.get("mapping"));

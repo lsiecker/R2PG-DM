@@ -9,6 +9,7 @@ import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
@@ -114,7 +115,7 @@ public class PGSchema {
     }
 
     private String getGraphType(String graphTypeName) {
-        return graphTypeName + "GraphType" + SP() + getTypeForm(false) + SP() + getGraphTypeDefinition();
+        return graphTypeName + "GraphType" + SP() + getTypeForm(true) + SP() + getGraphTypeDefinition();
     }
 
     private String getNodeType(String nodeTypeName) {
@@ -150,7 +151,7 @@ public class PGSchema {
                 String columnType = rs.getString("TYPE_NAME");
 
                 // Capitalize columntype and make it the GQL standard types
-                columnType = columnType.toUpperCase();
+                columnType = getGQLType(columnType.split(" ")[0].toLowerCase());
 
                 sb.append(columnName).append(SP()).append(columnType).append(",").append(SP());
             }
@@ -257,8 +258,66 @@ public class PGSchema {
             System.err.println("\nOutput - Syntax errors found in schema");
             System.out.println(tree.toStringTree(parser));
         } else {
-            System.out.println("\nOutput - Schema is valid");
+            System.out.println("\nOutput - Generated schema is valid");
         }
+    }
+
+    // Create a mapping from mysql to GQL types
+    // https://dev.mysql.com/doc/refman/8.0/en/data-types.html
+    // https://graphql.org/learn/schema/
+
+    public static final Map<String, String> MapToGQL = new HashMap<String, String>();
+
+    static {
+        // Common to all
+        MapToGQL.put("id", "ID");
+        MapToGQL.put("boolean", "Boolean");
+        MapToGQL.put("bool", "Boolean");
+        MapToGQL.put("int", "Int");
+        MapToGQL.put("tinyint", "Int");
+        MapToGQL.put("smallint", "Int");
+        MapToGQL.put("mediumint", "Int");
+        MapToGQL.put("bigint", "Int");
+        MapToGQL.put("float", "Float");
+        MapToGQL.put("double", "Float");
+
+        // MySQL to GraphQL
+        MapToGQL.put("varchar", "String");
+        MapToGQL.put("char", "String");
+        MapToGQL.put("tinytext", "String");
+        MapToGQL.put("mediumtext", "String");
+        MapToGQL.put("longtext", "String");
+        MapToGQL.put("real", "Float");
+        MapToGQL.put("decimal", "Float");
+        MapToGQL.put("date", "String");
+        MapToGQL.put("time", "String");
+        MapToGQL.put("datetime", "String");
+        MapToGQL.put("timestamp", "String");
+        MapToGQL.put("year", "String");
+
+        // SQL Server to GraphQL
+        MapToGQL.put("nvarchar", "String");
+        MapToGQL.put("nchar", "String");
+        MapToGQL.put("text", "String");
+        MapToGQL.put("bit", "Boolean");
+
+        // PostgreSQL to GraphQL
+        MapToGQL.put("integer", "Int");
+        MapToGQL.put("double precision", "Float");
+        MapToGQL.put("timestamptz", "String");
+        MapToGQL.put("timetz", "String");
+
+        // SQLite to GraphQL
+        MapToGQL.put("blob", "String");
+    }
+
+    public static String getGQLType(String mysqlType) {
+        for (String key : MapToGQL.keySet()) {
+            if (mysqlType.toLowerCase().contains(key)) {
+                return MapToGQL.get(key).toUpperCase();
+            }
+        }
+        return "UNKNOWN";
     }
 
 }

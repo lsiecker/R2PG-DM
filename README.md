@@ -61,6 +61,7 @@ tables=true
 views=true
 schema=dbo
 tableNames=*
+deleteCopy=false
 ```
 
 The connectionString should be in the JDBC connection string format. You can find more information about this format [here]( https://vladmihalcea.com/jdbc-driver-connection-url-strings/). Furthermore there are some settings regarding the mapping. Boolean values for tables and views determine wheter or not to take into account these table types. Keep in mind that views do not include foreign key information, only column information. Schema is the schema in the source database that needs to be mapped. tableNames is a parameter that can be filled with several table/view names to specify that mapping. The names should be seperated with a comma **not** in quotes: `country,countrylanguage,city`.

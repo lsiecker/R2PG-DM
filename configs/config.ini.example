@@ -13,3 +13,4 @@ tables=true
 views=true
 schema=dbo
 tableNames=*
+deleteCopy=false
