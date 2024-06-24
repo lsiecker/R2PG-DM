@@ -31,7 +31,7 @@ jobs:
     - name: Test with Maven
       run: mvn -B -f java-project/pom.xml test
 
-    - name: Publish to GitHub Packages Apache Maven
-      run: mvn deploy -s $GITHUB_WORKSPACE/settings.xml
+    - name: Deploy with Maven
+      run: mvn -B -f java-project/pom.xml deploy -s $GITHUB_WORKSPACE/settings.xml
       env:
         GITHUB_TOKEN: ${{ github.token }}
