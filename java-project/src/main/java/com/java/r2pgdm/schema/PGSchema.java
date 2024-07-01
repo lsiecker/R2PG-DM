@@ -80,6 +80,7 @@ public class PGSchema {
     private void createSchema() {
         schema = createType("GraphType");
         schema += EOF();
+        cleanupSchema();
 
         // System.out.println("\nOutput - Schema:\n");
         // System.out.println(schema);
@@ -232,6 +233,22 @@ public class PGSchema {
 
     private String EOF() {
         return "\n";
+    }
+
+    private void cleanupSchema() {
+        // No two lines should be the same, if there are, remove one
+        String[] lines = this.schema.split("\n");
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < lines.length; i++) {
+            if (i == 0) {
+                sb.append(lines[i]).append("\n");
+            } else {
+                if (!lines[i].equals(lines[i - 1])) {
+                    sb.append(lines[i]).append("\n");
+                }
+            }
+        }
+        this.schema = sb.toString();
     }
 
     public void exportGraph(String filePath) {
